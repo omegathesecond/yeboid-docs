@@ -67,6 +67,12 @@ export default defineConfig({
           { text: 'KYC with YeboVerify', link: '/kyc-integration' },
           { text: 'Webhooks', link: '/webhooks' }
         ]
+      },
+      {
+        text: 'Resources',
+        items: [
+          { text: 'Demo App', link: '/demo-app' }
+        ]
       }
     ],
 
