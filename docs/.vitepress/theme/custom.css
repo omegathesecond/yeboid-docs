@@ -1,0 +1,229 @@
+/**
+ * YeboID Midnight Gold Theme
+ * A dark theme with gold accents for the YeboID documentation
+ */
+
+:root {
+  /* Gold palette */
+  --gold-primary: #D4AF37;
+  --gold-light: #F5E6A3;
+  --gold-dark: #B8962E;
+  
+  /* Dark palette */
+  --dark-bg: #0A0A0F;
+  --dark-surface: #1A1A2E;
+  --dark-border: #2A2A3E;
+  
+  /* Override VitePress default colors for light mode */
+  --vp-c-brand-1: var(--gold-primary);
+  --vp-c-brand-2: var(--gold-dark);
+  --vp-c-brand-3: var(--gold-light);
+  --vp-c-brand-soft: rgba(212, 175, 55, 0.14);
+  
+  /* Links */
+  --vp-c-text-1: #374151;
+  --vp-c-text-2: #6B7280;
+  
+  /* Button */
+  --vp-button-brand-bg: var(--gold-primary);
+  --vp-button-brand-border: var(--gold-primary);
+  --vp-button-brand-text: #0A0A0F;
+  --vp-button-brand-hover-bg: var(--gold-dark);
+  --vp-button-brand-hover-border: var(--gold-dark);
+  --vp-button-brand-active-bg: var(--gold-dark);
+  --vp-button-brand-active-border: var(--gold-dark);
+}
+
+/* Dark mode overrides */
+.dark {
+  --vp-c-bg: var(--dark-bg);
+  --vp-c-bg-alt: var(--dark-surface);
+  --vp-c-bg-elv: var(--dark-surface);
+  --vp-c-bg-soft: var(--dark-surface);
+  
+  --vp-c-text-1: #F9FAFB;
+  --vp-c-text-2: #9CA3AF;
+  --vp-c-text-3: #6B7280;
+  
+  --vp-c-divider: var(--dark-border);
+  --vp-c-border: var(--dark-border);
+  --vp-c-gutter: var(--dark-bg);
+  
+  --vp-nav-bg-color: var(--dark-bg);
+  --vp-sidebar-bg-color: var(--dark-bg);
+  
+  --vp-code-block-bg: #0D0D12;
+  
+  /* Gold accents in dark mode */
+  --vp-c-brand-1: var(--gold-primary);
+  --vp-c-brand-2: var(--gold-light);
+  --vp-c-brand-3: var(--gold-dark);
+  --vp-c-brand-soft: rgba(212, 175, 55, 0.16);
+}
+
+/* Hero section styling */
+.VPHero .name {
+  background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-light) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.VPHero .tagline {
+  color: var(--vp-c-text-2);
+}
+
+/* Feature cards */
+.VPFeature {
+  border: 1px solid var(--vp-c-border);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.VPFeature:hover {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 1px var(--gold-primary);
+}
+
+/* Code blocks */
+.dark .vp-code-group .tabs label {
+  color: var(--vp-c-text-2);
+}
+
+.dark .vp-code-group .tabs label.active {
+  color: var(--gold-primary);
+  border-bottom-color: var(--gold-primary);
+}
+
+/* Custom badge styles */
+.custom-block.tip {
+  border-color: var(--gold-primary);
+  background-color: rgba(212, 175, 55, 0.1);
+}
+
+.custom-block.tip .custom-block-title {
+  color: var(--gold-primary);
+}
+
+/* Links */
+.vp-doc a {
+  color: var(--gold-primary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--gold-primary);
+  transition: border-bottom-color 0.2s;
+}
+
+.vp-doc a:hover {
+  border-bottom-color: transparent;
+}
+
+/* Sidebar active item */
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--gold-primary);
+}
+
+/* Nav item active */
+.VPNavBarMenuLink.active,
+.VPNavScreenMenuLink.active {
+  color: var(--gold-primary);
+}
+
+/* Logo styling */
+.VPNavBarTitle .title {
+  background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-light) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+}
+
+/* Table styling */
+.vp-doc table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.vp-doc th,
+.vp-doc td {
+  border: 1px solid var(--vp-c-border);
+  padding: 0.75rem 1rem;
+}
+
+.vp-doc th {
+  background-color: var(--vp-c-bg-soft);
+  font-weight: 600;
+}
+
+.dark .vp-doc tr:nth-child(even) {
+  background-color: rgba(26, 26, 46, 0.5);
+}
+
+/* Footer styling */
+.VPFooter {
+  border-top: 1px solid var(--vp-c-border);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dark-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary);
+}
+
+/* Widget preview boxes */
+.widget-preview {
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.widget-preview img {
+  max-width: 300px;
+  border-radius: 8px;
+}
+
+/* API endpoint badges */
+.api-method {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+  text-transform: uppercase;
+}
+
+.api-method.get {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22C55E;
+}
+
+.api-method.post {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3B82F6;
+}
+
+.api-method.patch {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #F97316;
+}
+
+.api-method.delete {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
