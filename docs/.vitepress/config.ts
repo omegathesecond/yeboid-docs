@@ -22,6 +22,7 @@ export default defineConfig({
       { text: 'Guide', link: '/getting-started' },
       { text: 'Flutter SDK', link: '/flutter-sdk/' },
       { text: 'API Reference', link: '/api-reference' },
+      { text: 'Register App', link: '/register-app' },
       { text: 'yeboid.com', link: 'https://yeboid.com' }
     ],
 
@@ -30,7 +31,8 @@ export default defineConfig({
         text: 'Introduction',
         items: [
           { text: 'Overview', link: '/' },
-          { text: 'Getting Started', link: '/getting-started' }
+          { text: 'Getting Started', link: '/getting-started' },
+          { text: 'Register Your App', link: '/register-app' }
         ]
       },
       {
