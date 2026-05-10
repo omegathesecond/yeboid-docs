@@ -1,0 +1,31 @@
+# YeboID Developer Documentation
+
+> Phone-first identity for African apps — SDK reference, integration guides, and API documentation.
+
+This is the developer documentation for YeboID, the shared identity layer for African apps. It covers SDK installation for Flutter, Node, and the web; OAuth/OIDC integration; phone-OTP and PIN flows; legacy-user linking; and the full HTTP API reference.
+
+YeboID is part of the Omevision family of African-built tech products, headquartered in Mbabane, Eswatini. Category: Identity / Authentication / Developer Documentation.
+
+## What you'll find here
+
+- Quickstart guides for Flutter, Node.js, and JavaScript/TypeScript web apps
+- OAuth 2.0 / OpenID Connect integration with PKCE
+- Phone-number authentication with OTP via SMS and WhatsApp
+- PIN-based step-up authentication
+- Legacy-user linking (migrating existing users to YeboID without re-registration)
+- HTTP API reference, error codes, and webhooks
+- Production checklists and security best practices
+
+## Who it is for
+
+Developers and product teams adding YeboID authentication to consumer or B2B apps targeting African users.
+
+## Links
+
+- [YeboID developer docs (this site)](https://docs.yeboid.com): SDK reference and integration guides.
+- [YeboID (main site)](https://yeboid.com): the product homepage and signup.
+- [Omevision (parent company)](https://omevision.com): the African tech group behind YeboID.
+
+## About this file
+
+This file follows the [llms.txt convention](https://llmstxt.org/) — it is a curated, machine-readable summary of the YeboID developer documentation intended for use by LLMs and AI agents. Last generated: 2026-05-10.
