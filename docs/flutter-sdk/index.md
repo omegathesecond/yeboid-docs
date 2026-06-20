@@ -8,8 +8,20 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  yeboid_flutter: ^1.0.0
+  yeboid_flutter: ^1.0.3
 ```
+
+Or pin the GitHub release directly (works today, before pub.dev publish):
+
+```yaml
+dependencies:
+  yeboid_flutter:
+    git:
+      url: https://github.com/omegathesecond/yeboid-flutter.git
+      ref: v1.0.3
+```
+
+The SDK requires `flutter_appauth ^8` in the consuming app.
 
 Run:
 
@@ -142,24 +154,33 @@ dependencies:
 
 ## Platform Setup
 
+Your `redirectUri` **must be a custom scheme** (e.g. `yourapp://callback`) and
+that scheme must be registered both on your YeboID OAuth app's `redirectUris`
+**and** natively, below. (Don't use an `https://` App Link — system browsers
+claim https themselves and won't reliably hand it back to your app.)
+
 ### Android
 
-Add to `android/app/src/main/AndroidManifest.xml`:
+Register the redirect scheme with `flutter_appauth`'s manifest placeholder in
+`android/app/build.gradle` (do **not** hand-add an intent-filter to
+`MainActivity` — the SDK/`flutter_appauth` provides the `RedirectUriReceiverActivity`):
 
-```xml
-<manifest>
-  <application>
-    <activity android:name=".MainActivity">
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="yourapp" android:host="auth" />
-      </intent-filter>
-    </activity>
-  </application>
-</manifest>
+```gradle
+android {
+    defaultConfig {
+        manifestPlaceholders += ['appAuthRedirectScheme': 'yourapp']
+    }
+}
 ```
+
+::: danger Do NOT set `android:taskAffinity=""` on MainActivity
+`flutter_appauth`'s `AuthorizationManagementActivity` is `singleTask` with the
+default task affinity (your package name). An empty/custom affinity on
+`MainActivity` puts the OAuth flow in a separate task that is cleared during the
+browser round-trip — login completes in the browser but never returns to the
+app, and logcat shows `W/AppAuth: No stored state - unable to handle response`.
+Leave `MainActivity` on the default affinity (`launchMode="singleTop"` is fine).
+:::
 
 ### iOS
 

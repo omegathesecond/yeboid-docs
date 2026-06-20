@@ -53,7 +53,8 @@ export default defineConfig({
           { text: 'YeboIDAvatar', link: '/flutter-sdk/avatar' },
           { text: 'YeboIDProfileCard', link: '/flutter-sdk/profile-card' },
           { text: 'YeboIDVerifyButton', link: '/flutter-sdk/verify-button' },
-          { text: 'YeboIDUser Model', link: '/flutter-sdk/user-model' }
+          { text: 'YeboIDUser Model', link: '/flutter-sdk/user-model' },
+          { text: 'Troubleshooting', link: '/flutter-sdk/troubleshooting' }
         ]
       },
       {
