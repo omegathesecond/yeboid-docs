@@ -1,43 +1,69 @@
 # Webhooks
 
-YeboID can send HTTP webhooks to your server when events occur.
+YeboID can send HTTP webhooks to your server when events occur — so you can keep your
+copy of `yeboid_user_id` → app state in sync without polling.
 
 ## Overview
 
-Webhooks allow your application to receive real-time notifications about:
-- User registration
-- KYC verification status changes
-- Account updates
-- Session events
+Subscribe an HTTPS endpoint to one or more event types. When a subscribed event fires,
+YeboID `POST`s a signed JSON payload to your URL. You verify the signature, then process
+the event.
 
-## Setup
+## Subscribe to webhooks
 
-Configure webhooks in the [YeboID Dashboard](https://yeboid.com/dashboard):
+Create a subscription with an authenticated request to the API (you must be signed in to
+YeboID as the owner of the app):
 
-1. Go to **Settings** → **Webhooks**
-2. Click **Add Endpoint**
-3. Enter your webhook URL
-4. Select events to subscribe to
-5. Copy the signing secret
+```bash
+POST https://api.yeboid.com/webhooks
+Authorization: Bearer <access_token>
+Content-Type: application/json
 
-## Webhook Format
+{
+  "url": "https://yourapp.com/webhooks/yeboid",
+  "events": ["user.kyc.verified", "user.updated"]
+}
+```
 
-All webhooks are HTTP POST requests with JSON body:
+The response includes the **signing secret** — it is shown **once**, so store it
+securely:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "whk_abc123",
+    "url": "https://yourapp.com/webhooks/yeboid",
+    "events": ["user.kyc.verified", "user.updated"],
+    "secret": "whsec_8f3c...store-this-now"
+  }
+}
+```
+
+Use `GET /webhooks/events` to fetch the list of available event names programmatically,
+`GET /webhooks` to list your subscriptions, `PATCH /webhooks/:id` to change the URL or
+events, and `DELETE /webhooks/:id` to remove one. `POST /webhooks/test` sends a test
+delivery to a subscription.
+
+## Webhook format
+
+Every delivery is an HTTP `POST` with a JSON body and signature headers:
 
 ```http
 POST /your-webhook-endpoint
 Content-Type: application/json
-X-YeboID-Signature: sha256=abc123...
+X-YeboID-Signature: v1=3045b1c9...
 X-YeboID-Timestamp: 1710770000
-X-YeboID-Event: user.verified
+X-YeboID-Event: user.kyc.verified
+X-YeboID-Delivery-ID: dlv_abc123
 ```
 
-### Payload Structure
+### Payload structure
 
 ```json
 {
   "id": "evt_abc123",
-  "type": "user.verified",
+  "event": "user.kyc.verified",
   "created_at": "2026-03-18T20:00:00Z",
   "data": {
     // Event-specific data
@@ -45,316 +71,178 @@ X-YeboID-Event: user.verified
 }
 ```
 
-## Verifying Signatures
+The event type is the **`event`** field (and the `X-YeboID-Event` header).
 
-Always verify webhook signatures to ensure requests are from YeboID:
+## Verifying signatures
+
+YeboID signs **`${timestamp}.${rawBody}`** with HMAC-SHA256 using your subscription's
+signing secret, hex-encodes it, and prefixes it with `v1=`. Verify against the **raw
+request body bytes** — parsing and re-serializing the JSON can change the bytes and break
+the check.
 
 ```javascript
 const crypto = require('crypto');
 
-function verifySignature(payload, signature, secret) {
-  const timestamp = req.headers['x-yeboid-timestamp'];
-  const signedPayload = `${timestamp}.${JSON.stringify(payload)}`;
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(signedPayload)
-    .digest('hex');
-  
-  return `sha256=${expectedSignature}` === signature;
+function verifySignature(rawBody, signatureHeader, timestamp, secret) {
+  const expected =
+    'v1=' +
+    crypto
+      .createHmac('sha256', secret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest('hex');
+
+  // Constant-time comparison
+  return (
+    signatureHeader.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
+  );
 }
 
-// In your endpoint:
-app.post('/webhooks/yeboid', (req, res) => {
-  const signature = req.headers['x-yeboid-signature'];
-  
-  if (!verifySignature(req.body, signature, WEBHOOK_SECRET)) {
-    return res.status(401).send('Invalid signature');
-  }
-  
-  // Process webhook...
-  res.status(200).send('OK');
-});
+// Express — note express.raw() so req.body is the raw Buffer
+app.post(
+  '/webhooks/yeboid',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    const signature = req.header('X-YeboID-Signature') ?? '';
+    const timestamp = req.header('X-YeboID-Timestamp') ?? '';
+    const rawBody = req.body.toString('utf8');
+
+    // Reject deliveries more than 5 minutes old (replay protection)
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - Number(timestamp)) > 300) {
+      return res.status(401).send('Stale timestamp');
+    }
+
+    if (!verifySignature(rawBody, signature, timestamp, WEBHOOK_SECRET)) {
+      return res.status(401).send('Invalid signature');
+    }
+
+    const event = JSON.parse(rawBody);
+    res.status(200).send('OK'); // respond fast, then process async
+    handleEvent(event).catch(console.error);
+  },
+);
 ```
+
+::: tip Node.js SDK
+The [Node.js SDK](/node-sdk/#verifying-webhooks) shows the same verification inline. YeboID
+enforces a **300-second** timestamp tolerance on its side too, and your endpoint should do
+the same to guard against replays.
+:::
 
 ## Events
 
-### user.created
+Subscribe to any of these event names:
 
-Fired when a new user signs up.
+| Event | Fires when |
+|-------|------------|
+| `user.created` | A new user signs up. |
+| `user.updated` | A user's profile is updated. |
+| `user.deleted` | A user deletes their account. |
+| `user.kyc.submitted` | A user submits KYC verification. |
+| `user.kyc.verified` | A user's KYC is approved. |
+| `user.kyc.rejected` | A user's KYC is rejected. |
+| `app.authorized` | A user authorizes (consents to) your app. |
+| `app.revoked` | A user disconnects your app. |
+| `session.created` | A user signs in. |
+| `session.destroyed` | A user's session ends (logout or revocation). |
+
+### Example payloads
+
+`user.kyc.verified`:
 
 ```json
 {
   "id": "evt_abc123",
-  "type": "user.created",
+  "event": "user.kyc.verified",
   "created_at": "2026-03-18T20:00:00Z",
   "data": {
-    "user": {
-      "id": "uuid",
-      "phone": "+26878422613",
-      "handle": "laslie",
-      "name": "Laslie Georges Jr.",
-      "created_at": "2026-03-18T20:00:00Z"
-    }
+    "user_id": "usr_abc123",
+    "verification_id": "ver_xyz",
+    "verified_at": "2026-03-18T20:00:00Z",
+    "country": "SZ"
   }
 }
 ```
 
----
-
-### user.updated
-
-Fired when user profile is updated.
+`user.updated`:
 
 ```json
 {
-  "id": "evt_abc123",
-  "type": "user.updated",
+  "id": "evt_def456",
+  "event": "user.updated",
   "created_at": "2026-03-18T20:00:00Z",
   "data": {
-    "user": {
-      "id": "uuid",
-      "handle": "laslie",
-      "name": "Laslie G.",
-      "avatar_url": "https://...",
-      "updated_at": "2026-03-18T20:00:00Z"
-    },
+    "user_id": "usr_abc123",
     "changed_fields": ["name", "avatar_url"]
   }
 }
 ```
 
----
-
-### user.deleted
-
-Fired when user deletes their account.
+`user.deleted`:
 
 ```json
 {
-  "id": "evt_abc123",
-  "type": "user.deleted",
+  "id": "evt_ghi789",
+  "event": "user.deleted",
   "created_at": "2026-03-18T20:00:00Z",
   "data": {
-    "user_id": "uuid",
+    "user_id": "usr_abc123",
     "deleted_at": "2026-03-18T20:00:00Z"
   }
 }
 ```
 
----
+## Retry policy
 
-### kyc.submitted
+If your endpoint doesn't return a 2xx status (or the request fails), YeboID retries with
+backoff:
 
-Fired when user submits KYC verification.
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "kyc.submitted",
-  "created_at": "2026-03-18T20:00:00Z",
-  "data": {
-    "user_id": "uuid",
-    "verification_id": "ver_xyz",
-    "submitted_at": "2026-03-18T20:00:00Z"
-  }
-}
-```
-
----
-
-### kyc.verified
-
-Fired when KYC verification is approved.
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "kyc.verified",
-  "created_at": "2026-03-18T20:00:00Z",
-  "data": {
-    "user_id": "uuid",
-    "verification_id": "ver_xyz",
-    "verified_at": "2026-03-18T20:00:00Z",
-    "country": "SZ",
-    "documents": ["id_card"]
-  }
-}
-```
-
----
-
-### kyc.rejected
-
-Fired when KYC verification is rejected.
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "kyc.rejected",
-  "created_at": "2026-03-18T20:00:00Z",
-  "data": {
-    "user_id": "uuid",
-    "verification_id": "ver_xyz",
-    "rejected_at": "2026-03-18T20:00:00Z",
-    "reason": "document_unclear",
-    "message": "ID card photo is blurry"
-  }
-}
-```
-
----
-
-### session.created
-
-Fired when user logs in.
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "session.created",
-  "created_at": "2026-03-18T20:00:00Z",
-  "data": {
-    "user_id": "uuid",
-    "session_id": "sess_xyz",
-    "device_name": "iPhone 15 Pro",
-    "platform": "ios",
-    "ip_address": "102.xxx.xxx.xxx"
-  }
-}
-```
-
----
-
-### session.revoked
-
-Fired when a session is revoked (logout or security).
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "session.revoked",
-  "created_at": "2026-03-18T20:00:00Z",
-  "data": {
-    "user_id": "uuid",
-    "session_id": "sess_xyz",
-    "reason": "user_logout"
-  }
-}
-```
-
----
-
-## Retry Policy
-
-If your endpoint returns a non-2xx status code, YeboID will retry:
-
-| Attempt | Delay |
-|---------|-------|
-| 1 | Immediate |
+| Attempt | Delay after previous |
+|---------|----------------------|
+| 1 | immediate |
 | 2 | 1 minute |
 | 3 | 5 minutes |
-| 4 | 30 minutes |
-| 5 | 2 hours |
-| 6 | 24 hours |
 
-After 6 failed attempts, the webhook is marked as failed.
+Delivery is attempted at most **3 times** (with a 30-second request timeout). After the
+final attempt fails, the delivery is marked failed. Make your handler **idempotent** and
+deduplicate on the event `id`, since a delivery can arrive more than once.
 
-## Best Practices
+## Best practices
 
-### 1. Respond Quickly
+### Respond quickly
 
-Return `200 OK` immediately, then process asynchronously:
+Return `200 OK` as soon as you've verified the signature, then process asynchronously — a
+slow handler can trip the 30-second timeout and trigger a retry.
 
-```javascript
-app.post('/webhooks/yeboid', (req, res) => {
-  // Verify signature first
-  if (!verifySignature(req.body, ...)) {
-    return res.status(401).send('Invalid');
-  }
-  
-  // Respond immediately
-  res.status(200).send('OK');
-  
-  // Process async
-  processWebhook(req.body).catch(console.error);
-});
-```
-
-### 2. Handle Duplicates
-
-Webhooks may be delivered multiple times. Use `event.id` to deduplicate:
+### Handle duplicates
 
 ```javascript
-async function processWebhook(event) {
-  // Check if already processed
+async function handleEvent(event) {
   const exists = await db.webhookEvents.findOne({ id: event.id });
-  if (exists) return;
-  
-  // Mark as processing
+  if (exists) return; // already processed
   await db.webhookEvents.insert({ id: event.id, status: 'processing' });
-  
-  // Process event...
-  
-  // Mark as complete
+  // ... process event.event / event.data ...
   await db.webhookEvents.update({ id: event.id }, { status: 'complete' });
 }
 ```
 
-### 3. Verify Signatures
+### Always verify the signature
 
-**Always** verify the signature before processing:
+Reject any request whose `X-YeboID-Signature` doesn't match, and any whose
+`X-YeboID-Timestamp` is outside the 300-second window.
 
-```javascript
-const signature = req.headers['x-yeboid-signature'];
-const timestamp = req.headers['x-yeboid-timestamp'];
+### Use HTTPS
 
-// Check timestamp to prevent replay attacks
-const now = Math.floor(Date.now() / 1000);
-if (Math.abs(now - parseInt(timestamp)) > 300) {
-  return res.status(401).send('Timestamp too old');
-}
+Webhook URLs must be HTTPS so payloads are encrypted in transit.
 
-if (!verifySignature(req.body, signature, secret)) {
-  return res.status(401).send('Invalid signature');
-}
-```
+## Local development
 
-### 4. Use HTTPS
-
-Always use HTTPS endpoints to protect webhook data in transit.
-
-## Testing
-
-### Manual Testing
-
-Use the Dashboard to send test webhooks:
-
-1. Go to **Settings** → **Webhooks**
-2. Click on your endpoint
-3. Click **Send Test Event**
-4. Select event type
-5. Check your server logs
-
-### Local Development
-
-Use a tunnel service like ngrok:
+Expose your local server with a tunnel and point a subscription at the public URL:
 
 ```bash
 ngrok http 3000
-# Use the HTTPS URL as your webhook endpoint
+# Subscribe https://<id>.ngrok.io/webhooks/yeboid via POST /webhooks
 ```
 
-## Event Log
-
-View recent webhook deliveries in the Dashboard:
-
-1. Go to **Settings** → **Webhooks**
-2. Click on your endpoint
-3. View **Recent Deliveries**
-
-Each delivery shows:
-- Event type
-- Timestamp
-- Response status
-- Response body
-- Retry attempts
+Then trigger a test delivery with `POST /webhooks/test`.

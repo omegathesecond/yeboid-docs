@@ -20,8 +20,15 @@ export default defineConfig({
     
     nav: [
       { text: 'Guide', link: '/getting-started' },
-      { text: 'Flutter SDK', link: '/flutter-sdk/' },
-      { text: 'API Reference', link: '/api-reference' },
+      {
+        text: 'SDKs',
+        items: [
+          { text: 'Node.js', link: '/node-sdk/' },
+          { text: 'Web / React', link: '/web-sdk/' },
+          { text: 'Flutter', link: '/flutter-sdk/' }
+        ]
+      },
+      { text: 'API Reference', link: '/api-reference/oauth' },
       { text: 'Register App', link: '/register-app' },
       { text: 'yeboid.com', link: 'https://yeboid.com' }
     ],
@@ -44,8 +51,16 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Flutter SDK',
+        text: 'SDKs',
         collapsed: false,
+        items: [
+          { text: 'Node.js SDK', link: '/node-sdk/' },
+          { text: 'Web / React SDK', link: '/web-sdk/' }
+        ]
+      },
+      {
+        text: 'Flutter SDK',
+        collapsed: true,
         items: [
           { text: 'Installation', link: '/flutter-sdk/' },
           { text: 'YeboIDProvider', link: '/flutter-sdk/provider' },
@@ -60,7 +75,8 @@ export default defineConfig({
       {
         text: 'API Reference',
         items: [
-          { text: 'Endpoints', link: '/api-reference' },
+          { text: 'OAuth & OIDC', link: '/api-reference/oauth' },
+          { text: 'REST Endpoints', link: '/api-reference' },
           { text: 'User Management', link: '/api-reference/users' }
         ]
       },
@@ -93,7 +109,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/omegathesecond/yeboid-docs/edit/main/docs/:path',
+      pattern: 'https://github.com/omegathesecond/yeboid-docs/edit/master/docs/:path',
       text: 'Edit this page'
     }
   },

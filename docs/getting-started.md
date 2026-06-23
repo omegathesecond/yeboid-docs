@@ -36,15 +36,20 @@ YeboIDProvider(
 
 [View Flutter SDK Documentation →](/flutter-sdk)
 
+### Server-side SDKs
+
+- **[Node.js SDK](/node-sdk/)** — Express middleware + token verification + the OAuth flow for Node/TypeScript backends.
+- **[Web / React SDK](/web-sdk/)** — browser PKCE flow with React bindings.
+
 ### REST API
 
 For backend integrations or custom implementations:
 
 - OAuth 2.0 authorization endpoint: `https://yeboid.com/oauth/authorize`
 - Token endpoint: `https://api.yeboid.com/oauth/token`
-- User info endpoint: `https://api.yeboid.com/users/me`
+- User info endpoint: `https://api.yeboid.com/oauth/userinfo`
 
-[View API Reference →](/api-reference)
+[View OAuth API Reference →](/api-reference/oauth)
 
 ## Authentication Flow
 
@@ -70,8 +75,8 @@ sequenceDiagram
 | Token | Lifetime | Usage |
 |-------|----------|-------|
 | Access Token | 15 minutes | API requests (`Authorization: Bearer <token>`) |
-| Refresh Token | 30 days | Get new access tokens |
-| ID Token | 15 minutes | Contains user claims (OpenID Connect) |
+| Refresh Token | 60 days | Get new access tokens |
+| ID Token | 1 hour | Contains user claims (OpenID Connect) |
 
 ## KYC Verification
 

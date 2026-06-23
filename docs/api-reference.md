@@ -1,13 +1,15 @@
-# API Reference
+# REST API Reference
 
-RESTful API for YeboID authentication and identity management.
+RESTful API for YeboID phone+OTP authentication and identity management. For the OAuth 2.0
+/ OpenID Connect endpoints (`/oauth/*`, discovery, JWKS), see the
+[OAuth & OIDC reference](/api-reference/oauth).
 
 ## Base URLs
 
 | Environment | URL |
 |-------------|-----|
 | Production | `https://api.yeboid.com` |
-| Staging | `https://api-staging.yeboid.com` |
+| Development | `https://dev-api.yeboid.com` |
 
 ## Authentication
 
@@ -522,8 +524,9 @@ X-RateLimit-Reset: 1710770000
 
 ## SDKs
 
-- [Flutter SDK](/flutter-sdk) — Official Flutter package
-- More SDKs coming soon
+- [Node.js SDK](/node-sdk/) — Express middleware + token verification for backends
+- [Web / React SDK](/web-sdk/) — browser PKCE flow with React bindings
+- [Flutter SDK](/flutter-sdk/) — official Flutter package
 
 ---
 
