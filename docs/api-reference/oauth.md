@@ -29,20 +29,30 @@ automatically.
   "token_endpoint": "https://api.yeboid.com/oauth/token",
   "userinfo_endpoint": "https://api.yeboid.com/oauth/userinfo",
   "revocation_endpoint": "https://api.yeboid.com/oauth/revoke",
+  "end_session_endpoint": "https://api.yeboid.com/oauth/logout",
+  "introspection_endpoint": "https://api.yeboid.com/oauth/introspect",
   "jwks_uri": "https://api.yeboid.com/.well-known/jwks.json",
   "registration_endpoint": "https://api.yeboid.com/apps",
   "response_types_supported": ["code"],
+  "response_modes_supported": ["query"],
   "grant_types_supported": ["authorization_code", "refresh_token"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "code_challenge_methods_supported": ["S256", "plain"],
-  "id_token_signing_alg_values_supported": ["RS256"]
+  "scopes_supported": ["openid", "profile", "profile:write", "phone", "email", "kyc", "kyc:full"],
+  "claims_supported": ["sub", "iss", "aud", "iat", "exp", "auth_time", "nonce", "name", "preferred_username", "picture", "phone_number", "phone_number_verified", "email", "email_verified", "kyc_status", "kyc_data", "country", "currency", "currency_symbol"]
 }
 ```
 
-::: tip No introspection or end-session endpoint
-YeboID does **not** expose an OAuth token-introspection endpoint
-(`/oauth/introspect`) or an OIDC RP-initiated `end_session_endpoint`. Verify access
-tokens locally via [JWKS](#jwks) (see [Token verification](#token-verification)), and use
-[`/oauth/revoke`](#revoke) to revoke tokens.
+::: tip Verify locally first
+Access tokens are self-contained RS256 JWTs — the fastest, network-free way to validate
+one is to verify its signature against the [JWKS](#jwks) (see
+[Token verification](#token-verification)). For cases where you need to confirm a token is
+still *live* (e.g. a refresh token, or an access token whose grant may have been revoked
+mid-lifetime), use the [introspection endpoint](#introspect). Revoke tokens with
+[`/oauth/revoke`](#revoke), and terminate the user's SSO session with
+[`/oauth/logout`](#end-session).
 :::
 
 ### <span class="api-method get">GET</span> /.well-known/jwks.json {#jwks}
@@ -189,6 +199,79 @@ even for unknown tokens.
 | `token_type_hint` | No | `access_token` or `refresh_token`. |
 | `client_secret` | Confidential clients | Required for confidential clients. |
 
+## Introspection
+
+### <span class="api-method post">POST</span> /oauth/introspect {#introspect}
+
+Token introspection (RFC 7662). Lets a resource server / API gateway confirm whether a
+presented **access OR refresh** token is currently live and read its metadata, instead of
+having to try to *use* it. This is the right call when local JWKS verification isn't
+enough — e.g. validating an opaque refresh token, or catching an access token whose grant
+was revoked before it expired.
+
+Client authentication mirrors [`/oauth/revoke`](#revoke): confidential clients send
+`client_secret`; public PKCE clients are identified by `client_id` alone. Rate-limited per
+`(client_id, IP)`.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `token` | Yes | The access or refresh token to inspect. |
+| `client_id` | Yes | Your app's client ID. |
+| `token_type_hint` | No | `access_token` or `refresh_token` — an ordering hint only; a wrong/absent hint never changes the result. |
+| `client_secret` | Confidential clients | Required for confidential clients. |
+
+**Active token response** (`200`)
+
+```json
+{
+  "active": true,
+  "scope": "openid profile phone",
+  "client_id": "yebo_1a2b3c...",
+  "sub": "usr_abc123",
+  "username": "johndoe",
+  "token_type": "Bearer",
+  "exp": 1735689600,
+  "iat": 1735688700
+}
+```
+
+`token_type` and the JWT-only fields are present for access tokens. For refresh tokens the
+response omits `token_type` and resolves `scope` from the consent grant.
+
+**Inactive token response** (`200`)
+
+```json
+{ "active": false }
+```
+
+Any unknown, expired, or revoked token — including an access token whose grant was
+withdrawn, or a refresh token that was rotated/revoked — returns a bare `{ "active": false }`.
+The endpoint deliberately never reveals *why* a token is inactive (RFC 7662 §2.2).
+
+## End session (logout)
+
+### <span class="api-method get">GET</span> /oauth/logout {#end-session}
+
+OIDC RP-initiated logout (the `end_session_endpoint` from discovery). Terminates the
+user's YeboID **SSO session** so they are genuinely signed out — without this, clearing
+your own product's session is futile, because the next silent `/oauth/authorize` re-logs
+the user straight back in from the surviving SSO cookie.
+
+Redirect the user's browser here (it reads the SSO cookie):
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `id_token_hint` | Recommended | A previously issued `id_token`. Identifies the client so `post_logout_redirect_uri` can be validated against its registered URIs. |
+| `post_logout_redirect_uri` | No | Where to send the user after logout. **Must** be a registered redirect URI of the identified client, or the request is rejected `400`. |
+| `client_id` | No | Fallback client identifier when no `id_token_hint` is supplied. |
+| `state` | No | Opaque value echoed back on the post-logout redirect. |
+
+On success YeboID destroys the SSO session and clears the cookie, then either redirects to
+`post_logout_redirect_uri` (echoing `state`) or — when none is supplied — returns
+`200 {"success": true, "message": "Logged out"}`. A `post_logout_redirect_uri` that can't
+be validated against a registered client URI is rejected with `400` and never redirected
+to (no open redirector).
+
 ## Authorized apps (grants)
 
 ### <span class="api-method get">GET</span> /oauth/grants
@@ -237,8 +320,9 @@ The `clientSecret` is shown **once** and stored hashed; rotate it with
 
 ## Token verification
 
-Because there is no introspection endpoint, **resource servers verify access tokens
-locally** against the JWKS — no network round-trip per request:
+For access tokens, the fastest path is to **verify the JWT locally** against the JWKS — no
+network round-trip per request (use [introspection](#introspect) when you instead need to
+confirm a token is still live):
 
 1. Fetch the signing keys from [`/.well-known/jwks.json`](#jwks) and cache them.
 2. Verify the JWT signature (`RS256`) against the key whose `kid` matches the token header.
