@@ -45,7 +45,7 @@ YeboIDProvider(
 
 For backend integrations or custom implementations:
 
-- OAuth 2.0 authorization endpoint: `https://yeboid.com/oauth/authorize`
+- Authorization request (send the **browser** here): `https://yeboid.com/oauth/authorize` — the hosted HTML login. The OIDC discovery document advertises `authorization_endpoint` as `https://api.yeboid.com/oauth/authorize` (the JSON API the login UI calls); don't point a browser at the API host directly. See [Base URLs](/api-reference/oauth#base-urls).
 - Token endpoint: `https://api.yeboid.com/oauth/token`
 - User info endpoint: `https://api.yeboid.com/oauth/userinfo`
 

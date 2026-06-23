@@ -11,8 +11,26 @@ endpoints. For the phone+OTP account REST API (sign-up, sessions, profile), see 
 | Production | `https://api.yeboid.com` | `https://yeboid.com` |
 | Development | `https://dev-api.yeboid.com` | — |
 
-The `authorization_endpoint` is user-facing and served by the YeboID app
-(`https://yeboid.com/oauth/authorize`); all other endpoints below are on the API host.
+There are **two** `/oauth/authorize` URLs, and the distinction matters:
+
+- `https://yeboid.com/oauth/authorize` — the hosted **HTML login UI**. This is where you send
+  the user's **browser** to start an interactive login.
+- `https://api.yeboid.com/oauth/authorize` — the **JSON protocol endpoint** the login UI calls.
+  When the user has no active session it returns a JSON payload (`requiresLogin: true`) describing
+  the app and requested scopes; the hosted UI renders that and POSTs the result back to it.
+
+The OIDC discovery document advertises `authorization_endpoint` as the API-host value
+(`https://api.yeboid.com/oauth/authorize`) — that is the literal value the server returns, shown
+verbatim below.
+
+::: warning Don't redirect a browser to the API host
+A discovery-driven OIDC client library will read `authorization_endpoint` and redirect the browser
+straight to `https://api.yeboid.com/oauth/authorize`, which renders as a **blank page of raw JSON**.
+For interactive browser flows, point users at the hosted login UI
+`https://yeboid.com/oauth/authorize` instead (this is what the [PKCE walkthrough](/authentication/pkce)
+and the SDKs do). All other endpoints (`token`, `userinfo`, `revoke`, `logout`, `introspect`, `jwks`)
+are on the API host as advertised.
+:::
 
 ## Discovery
 
@@ -25,7 +43,7 @@ automatically.
 ```json
 {
   "issuer": "https://api.yeboid.com",
-  "authorization_endpoint": "https://yeboid.com/oauth/authorize",
+  "authorization_endpoint": "https://api.yeboid.com/oauth/authorize",
   "token_endpoint": "https://api.yeboid.com/oauth/token",
   "userinfo_endpoint": "https://api.yeboid.com/oauth/userinfo",
   "revocation_endpoint": "https://api.yeboid.com/oauth/revoke",
