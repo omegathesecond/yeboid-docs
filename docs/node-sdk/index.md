@@ -163,8 +163,11 @@ sends the result in the `X-YeboID-Signature` header as `v1=<hex>`, alongside an
 `X-YeboID-Timestamp` header. You must verify against the **raw bytes** of the request
 body — re-serializing the parsed JSON can change the bytes and break the check.
 
+The SDK's `verifyWebhook` helper implements this exact scheme — it HMACs
+`` `${timestamp}.${rawBody}` ``, compares in constant time, and rejects stale
+timestamps (5-minute tolerance by default) — so you don't need to hand-roll the crypto:
+
 ```typescript
-import crypto from 'node:crypto';
 import express from 'express';
 
 // Capture the raw body for the webhook route
@@ -174,30 +177,21 @@ app.post(
   (req, res) => {
     const signature = req.header('X-YeboID-Signature') ?? '';
     const timestamp = req.header('X-YeboID-Timestamp') ?? '';
-    const rawBody = req.body.toString('utf8'); // raw Buffer -> string
 
-    // Reject deliveries older than 5 minutes (replay protection)
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - Number(timestamp)) > 300) {
-      return res.status(401).send('Stale timestamp');
-    }
-
-    const expected =
-      'v1=' +
-      crypto
-        .createHmac('sha256', process.env.YEBOID_WEBHOOK_SECRET!)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex');
-
-    const ok =
-      signature.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    // Pass the raw Buffer (not re-serialized JSON), the signature, the secret,
+    // and the timestamp header. Returns false on bad signature OR stale timestamp.
+    const ok = yeboid.verifyWebhook(
+      req.body,
+      signature,
+      process.env.YEBOID_WEBHOOK_SECRET!,
+      timestamp,
+    );
 
     if (!ok) {
       return res.status(401).send('Invalid signature');
     }
 
-    const event = JSON.parse(rawBody);
+    const event = JSON.parse(req.body.toString('utf8'));
     // handle event.event ('user.created', 'user.kyc.verified', ...)
     res.sendStatus(200);
   },
@@ -218,7 +212,7 @@ scheme.
 | `refreshToken(refreshToken)` | Exchange a refresh token for a new token set (rotated). |
 | `getUserInfo(accessToken)` | Fetch the user profile from `/oauth/userinfo`. |
 | `revokeToken(token)` | Revoke an access or refresh token. |
-| `verifyWebhook(payload, signature, secret)` | HMAC-SHA256 check over the raw payload, returns `boolean`. Note: it does **not** incorporate the `X-YeboID-Timestamp` header, so for current YeboID deliveries verify manually as shown [above](#verifying-webhooks). |
+| `verifyWebhook(payload, signature, secret, timestamp, toleranceSeconds?)` | Verifies a delivery against YeboID's `v1=HMAC_SHA256` over `timestamp.rawBody` scheme. Pass the raw body, the `X-YeboID-Signature` and `X-YeboID-Timestamp` header values, and the secret. Returns `boolean`; rejects stale timestamps (default tolerance 300s) for replay protection. |
 | `refreshJWKS()` | Force-refresh the cached signing keys. |
 | `clearJWKSCache()` | Clear the JWKS cache. |
 
