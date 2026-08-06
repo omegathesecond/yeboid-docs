@@ -34,7 +34,7 @@ YeboIDProvider(
 )
 ```
 
-[View Flutter SDK Documentation →](/flutter-sdk)
+[View Flutter SDK Documentation →](/flutter-sdk/)
 
 ### Server-side SDKs
 
@@ -109,7 +109,7 @@ More countries coming soon.
 
 ## Next Steps
 
-- [Flutter SDK Installation](/flutter-sdk)
-- [Authentication Deep Dive](/authentication)
+- [Flutter SDK Installation](/flutter-sdk/)
+- [Authentication Deep Dive](/authentication/)
 - [Widget Reference](/widgets/login-button)
 - [API Reference](/api-reference)

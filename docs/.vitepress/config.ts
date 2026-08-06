@@ -12,7 +12,10 @@ export default defineConfig({
     ['meta', { property: 'og:description', content: 'Universal Authentication for Africa' }],
   ],
   
-  ignoreDeadLinks: true,
+  // Fail the build on broken internal links. Docs rot silently otherwise —
+  // a renamed page leaves dead links that nothing catches until a developer
+  // hits a 404 mid-integration.
+  ignoreDeadLinks: false,
   
   themeConfig: {
     logo: '/logo.svg',
@@ -118,6 +121,13 @@ export default defineConfig({
     theme: {
       light: 'github-light',
       dark: 'one-dark-pro'
+    },
+    // Shiki ships no `gradle` grammar, so ```gradle fences silently fell back
+    // to plain text. Gradle build files are Groovy (build.gradle) or Kotlin
+    // (build.gradle.kts) source, so alias each onto the grammar it really is.
+    languageAlias: {
+      gradle: 'groovy',
+      'gradle.kts': 'kotlin'
     }
   }
 })

@@ -43,7 +43,8 @@ securely:
 Use `GET /webhooks/events` to fetch the list of available event names programmatically,
 `GET /webhooks` to list your subscriptions, `PATCH /webhooks/:id` to change the URL or
 events, and `DELETE /webhooks/:id` to remove one. `POST /webhooks/test` sends a test
-delivery to a subscription.
+delivery to a subscription, and [`GET /webhooks/:id/events`](#delivery-log) reads back the
+delivery log.
 
 ## Webhook format
 
@@ -207,6 +208,52 @@ backoff:
 Delivery is attempted at most **3 times** (with a 30-second request timeout). After the
 final attempt fails, the delivery is marked failed. Make your handler **idempotent** and
 deduplicate on the event `id`, since a delivery can arrive more than once.
+
+## Delivery log
+
+To debug deliveries, read back the recorded events:
+
+```bash
+GET https://api.yeboid.com/webhooks/:id/events?status=FAILED&limit=50
+Authorization: Bearer <access_token>
+```
+
+`:id` is one of your subscription IDs — it is used to prove you own the app.
+
+::: warning Results are app-scoped, not subscription-scoped
+Despite the path, the response contains events for **every subscription belonging to
+that app**, not only the subscription in the URL. Filter by `subscriptionId` client-side
+if you need a single subscription's history.
+:::
+
+| Query param | Values | Default |
+|-------------|--------|---------|
+| `status` | `PENDING`, `DELIVERED`, `FAILED` | all statuses |
+| `limit` | 1–100 (values above 100 are clamped) | 50 |
+
+Events come back newest-first:
+
+```json
+{
+  "success": true,
+  "events": [
+    {
+      "id": "evt_abc123",
+      "subscriptionId": "whk_abc123",
+      "event": "user.kyc.verified",
+      "payload": { "...": "..." },
+      "status": "FAILED",
+      "attempts": 3,
+      "lastAttemptAt": "2026-03-18T20:05:00.000Z",
+      "nextRetryAt": null,
+      "createdAt": "2026-03-18T20:00:00.000Z"
+    }
+  ]
+}
+```
+
+A `status` of `FAILED` with `attempts: 3` means the delivery is terminal — it will not be
+retried again.
 
 ## Best practices
 
