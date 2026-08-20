@@ -19,17 +19,17 @@ There are **two** `/oauth/authorize` URLs, and the distinction matters:
   When the user has no active session it returns a JSON payload (`requiresLogin: true`) describing
   the app and requested scopes; the hosted UI renders that and POSTs the result back to it.
 
-The OIDC discovery document advertises `authorization_endpoint` as the API-host value
-(`https://api.yeboid.com/oauth/authorize`) — that is the literal value the server returns, shown
-verbatim below.
+Discovery points you at the right one: `authorization_endpoint` and `end_session_endpoint`
+are advertised on the **login-UI host** (`https://yeboid.com/...`), while every
+machine-to-machine endpoint — `token`, `userinfo`, `revoke`, `introspect`, `jwks`,
+`registration` — is on the **API host**. A discovery-driven OIDC client library therefore
+works out of the box.
 
-::: warning Don't redirect a browser to the API host
-A discovery-driven OIDC client library will read `authorization_endpoint` and redirect the browser
-straight to `https://api.yeboid.com/oauth/authorize`, which renders as a **blank page of raw JSON**.
-For interactive browser flows, point users at the hosted login UI
-`https://yeboid.com/oauth/authorize` instead (this is what the [PKCE walkthrough](/authentication/pkce)
-and the SDKs do). All other endpoints (`token`, `userinfo`, `revoke`, `logout`, `introspect`, `jwks`)
-are on the API host as advertised.
+::: warning Never redirect a browser to `api.yeboid.com/oauth/authorize`
+The API-host `/oauth/authorize` is a JSON endpoint for the login UI, not a page. A browser
+sent there gets raw JSON, not a login screen. Only hardcode an authorize URL if you must,
+and if you do, use `https://yeboid.com/oauth/authorize` — the same URL discovery advertises
+and the one the [PKCE walkthrough](/authentication/pkce) and the SDKs use.
 :::
 
 ## Discovery
@@ -43,11 +43,11 @@ automatically.
 ```json
 {
   "issuer": "https://api.yeboid.com",
-  "authorization_endpoint": "https://api.yeboid.com/oauth/authorize",
+  "authorization_endpoint": "https://yeboid.com/oauth/authorize",
   "token_endpoint": "https://api.yeboid.com/oauth/token",
   "userinfo_endpoint": "https://api.yeboid.com/oauth/userinfo",
   "revocation_endpoint": "https://api.yeboid.com/oauth/revoke",
-  "end_session_endpoint": "https://api.yeboid.com/oauth/logout",
+  "end_session_endpoint": "https://yeboid.com/oauth/logout",
   "introspection_endpoint": "https://api.yeboid.com/oauth/introspect",
   "jwks_uri": "https://api.yeboid.com/.well-known/jwks.json",
   "registration_endpoint": "https://api.yeboid.com/apps",
@@ -56,8 +56,8 @@ automatically.
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["RS256"],
-  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
-  "code_challenge_methods_supported": ["S256", "plain"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
+  "code_challenge_methods_supported": ["S256"],
   "scopes_supported": ["openid", "profile", "profile:write", "phone", "email", "kyc", "kyc:full"],
   "claims_supported": ["sub", "iss", "aud", "iat", "exp", "auth_time", "nonce", "name", "preferred_username", "picture", "phone_number", "phone_number_verified", "email", "email_verified", "kyc_status", "kyc_data", "country", "currency", "currency_symbol"]
 }
@@ -107,10 +107,12 @@ to `https://yeboid.com/oauth/authorize` with these query parameters:
 | `redirect_uri` | Yes | Must exactly match a registered redirect URI. |
 | `scope` | No | Space-separated [scopes](/authentication/#available-scopes). Defaults to `openid profile`. |
 | `state` | Recommended | Opaque value echoed back, for CSRF protection. |
-| `code_challenge` | Yes (PKCE) | Base64URL SHA-256 of your `code_verifier`. |
-| `code_challenge_method` | Yes (PKCE) | `S256` (recommended) or `plain`. |
+| `code_challenge` | **Yes** | Base64URL SHA-256 of your `code_verifier`, 43–128 chars. PKCE is mandatory for every client, confidential ones included — there is no non-PKCE path. |
+| `code_challenge_method` | No | Only `S256` is accepted, and it is the default. Sending `plain` (or anything else) is rejected as a validation error. |
 | `nonce` | No | Bound into the `id_token` for replay protection. |
 | `prompt` | No | `none`, `login`, or `consent`. `none` errors with `login_required` / `consent_required` if interaction would be needed. |
+| `max_age` | No | Maximum acceptable age of the SSO session, in seconds. An older session re-challenges the user even though one exists — the working step-up lever. |
+| `acr_values` | No | Parsed and accepted so RPs may send it, but YeboID has no ACR catalog yet, so it does **not** force an assurance level. Use `max_age` / `prompt=login` instead. |
 
 On approval, YeboID redirects to your `redirect_uri` with `?code=<code>&state=<state>`.
 On denial, it redirects with `?error=access_denied`.
