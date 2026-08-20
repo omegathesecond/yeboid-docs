@@ -40,8 +40,7 @@ const yeboid = new YeboIDClient({
   clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
   redirectUri: `${window.location.origin}/auth/callback`,
   scope: 'openid profile phone',
-  // Required — the built-in default points at a host that does not resolve.
-  authUrl: 'https://yeboid.com/oauth/authorize',
+  // authUrl / tokenUrl / userinfoUrl default to production — no need to set them.
 });
 
 // On your callback route: finish the login
@@ -71,23 +70,35 @@ await yeboid.signOut();
 | `autoRefresh` | `boolean` | `true` | Pre-emptively refresh the access token before it expires. |
 | `refreshLeadSeconds` | `number` | `60` | How many seconds before expiry to refresh. |
 | `storage` | `Storage` | `localStorage`-backed | Where to persist the token set. |
-| `authUrl` | `string` | `https://id.yeboid.com/oauth/authorize` | **Set this.** See the warning below. |
+| `authUrl` | `string` | `https://yeboid.com/oauth/authorize` | Login/consent screen. Default is correct. |
 | `tokenUrl` | `string` | `https://api.yeboid.com/oauth/token` | Token exchange. Default is correct. |
 | `userinfoUrl` | `string` | `https://api.yeboid.com/oauth/userinfo` | Default is correct. |
 | `logoutUrl` | `string` | `https://api.yeboid.com/auth/logout` | Default is correct. |
 | `introspectUrl` | `string` | `https://api.yeboid.com/oauth/introspect` | Default is correct. |
 
-::: danger Always set `authUrl`
-The SDK's built-in `authUrl` default is `https://id.yeboid.com/oauth/authorize`, and
-**that host has no DNS record** — leaving it unset makes `signIn()` redirect to a domain
-that does not resolve, so login fails before it starts.
+::: tip The URL defaults already point at production
+Every `*Url` option defaults to the live production endpoint, so a normal integration
+only sets `clientId`, `redirectUri` and `scope`. The defaults match what the
+[OIDC discovery document](/api-reference/oauth#discovery) advertises.
 
-Pass `authUrl: 'https://yeboid.com/oauth/authorize'` (production) or
-`https://dev.yeboid.com/oauth/authorize` (development). Those are the hosts the
-[OIDC discovery document](/api-reference/oauth#discovery) advertises as
-`authorization_endpoint`.
+Note that `authUrl` is on `yeboid.com` while the rest are on `api.yeboid.com`. That is
+deliberate, not a typo: `/oauth/authorize` is the browser-facing screen where the user
+signs in and grants consent, so it is served by the login app; the token, userinfo,
+introspection and revocation endpoints are machine-to-machine and live on the API host.
 
-The other URL defaults point at `api.yeboid.com` and are correct as shipped.
+Override them only to point the SDK at the development environment:
+
+```typescript
+const yeboid = new YeboIDClient({
+  clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
+  redirectUri: `${window.location.origin}/auth/callback`,
+  authUrl: 'https://dev.yeboid.com/oauth/authorize',
+  tokenUrl: 'https://dev-api.yeboid.com/oauth/token',
+  userinfoUrl: 'https://dev-api.yeboid.com/oauth/userinfo',
+  logoutUrl: 'https://dev-api.yeboid.com/auth/logout',
+  introspectUrl: 'https://dev-api.yeboid.com/oauth/introspect',
+});
+```
 :::
 
 ## React
@@ -105,7 +116,6 @@ export function App() {
         clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
         redirectUri: `${window.location.origin}/auth/callback`,
         scope: 'openid profile phone',
-        authUrl: 'https://yeboid.com/oauth/authorize',
       }}
     >
       <ProfileButton />
