@@ -219,7 +219,7 @@ the `otp` branch. Use this to resend.
 ```json
 {
   "phone": "+26878422613",
-  "clientId": "yid_abc123",
+  "clientId": "yebo_1a2b3c...",
   "channel": "sms"
 }
 ```

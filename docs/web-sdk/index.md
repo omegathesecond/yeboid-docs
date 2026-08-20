@@ -40,6 +40,8 @@ const yeboid = new YeboIDClient({
   clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
   redirectUri: `${window.location.origin}/auth/callback`,
   scope: 'openid profile phone',
+  // Required — the built-in default points at a host that does not resolve.
+  authUrl: 'https://yeboid.com/oauth/authorize',
 });
 
 // On your callback route: finish the login
@@ -69,9 +71,24 @@ await yeboid.signOut();
 | `autoRefresh` | `boolean` | `true` | Pre-emptively refresh the access token before it expires. |
 | `refreshLeadSeconds` | `number` | `60` | How many seconds before expiry to refresh. |
 | `storage` | `Storage` | `localStorage`-backed | Where to persist the token set. |
+| `authUrl` | `string` | `https://id.yeboid.com/oauth/authorize` | **Set this.** See the warning below. |
+| `tokenUrl` | `string` | `https://api.yeboid.com/oauth/token` | Token exchange. Default is correct. |
+| `userinfoUrl` | `string` | `https://api.yeboid.com/oauth/userinfo` | Default is correct. |
+| `logoutUrl` | `string` | `https://api.yeboid.com/auth/logout` | Default is correct. |
+| `introspectUrl` | `string` | `https://api.yeboid.com/oauth/introspect` | Default is correct. |
 
-The SDK also accepts `authUrl`, `tokenUrl`, `userinfoUrl`, and `logoutUrl` overrides; the
-defaults already point at the YeboID production endpoints, so you typically don't set them.
+::: danger Always set `authUrl`
+The SDK's built-in `authUrl` default is `https://id.yeboid.com/oauth/authorize`, and
+**that host has no DNS record** — leaving it unset makes `signIn()` redirect to a domain
+that does not resolve, so login fails before it starts.
+
+Pass `authUrl: 'https://yeboid.com/oauth/authorize'` (production) or
+`https://dev.yeboid.com/oauth/authorize` (development). Those are the hosts the
+[OIDC discovery document](/api-reference/oauth#discovery) advertises as
+`authorization_endpoint`.
+
+The other URL defaults point at `api.yeboid.com` and are correct as shipped.
+:::
 
 ## React
 
@@ -88,6 +105,7 @@ export function App() {
         clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
         redirectUri: `${window.location.origin}/auth/callback`,
         scope: 'openid profile phone',
+        authUrl: 'https://yeboid.com/oauth/authorize',
       }}
     >
       <ProfileButton />

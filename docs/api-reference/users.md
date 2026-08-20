@@ -279,7 +279,7 @@ someone else's session.
 ```json
 [
   {
-    "clientId": "yid_abc123",
+    "clientId": "yebo_1a2b3c...",
     "name": "YeboShops",
     "icon": "https://...",
     "scopes": ["openid", "profile", "phone"],

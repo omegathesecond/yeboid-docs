@@ -1,74 +1,116 @@
 # Register Your App
 
-To integrate YeboID authentication into your application, you'll need to register your app with us.
+Every YeboID integration starts with an OAuth app. Registering one gives you
+the `client_id` (and, for confidential clients, the `client_secret`) that the
+[authorization-code + PKCE flow](/authentication/pkce) needs.
 
-## Why Registration?
+Registration is **self-service** — sign in with your own YeboID and create the
+app yourself. There is no approval queue and no waiting.
 
-YeboID is a secure identity platform. To protect our users, we manually review and approve all applications before granting API access.
+## Register in the developer portal
 
-This ensures:
-- ✅ Legitimate business use cases
-- ✅ Proper handling of user data
-- ✅ Compliance with privacy requirements
-- ✅ Quality integrations
+1. Sign in at [yeboid.com](https://yeboid.com) with your phone number.
+2. Open the developer portal at
+   **[yeboid.com/developer/apps](https://yeboid.com/developer/apps)**.
+3. Click **Create App** and fill in the form.
+4. Copy the credentials shown on success.
 
-## How to Register
+### What the form asks for
 
-<div class="tip custom-block" style="padding: 20px; background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.05)); border-left: 4px solid #D4AF37; border-radius: 8px; margin: 24px 0;">
+| Field | Required | Notes |
+|-------|----------|-------|
+| **Name** | Yes | 2–100 characters. Shown to users on the consent screen. |
+| **Slug** | Yes | 2–50 characters, lowercase letters, numbers and hyphens only. Must be globally unique. |
+| **Redirect URIs** | Yes | At least one absolute URL. Matched **exactly** at authorize time. |
+| **Scopes** | No | Defaults to `openid profile`. See [available scopes](/authentication/#available-scopes). |
+| **Logo URL** | No | Absolute URL, shown on the consent screen. |
+| **Website URL** | No | Absolute URL. |
+| **Privacy policy URL** | No | Absolute URL. |
 
-**Contact us to register your app:**
+::: warning Redirect URIs are matched exactly
+`https://app.example.com/callback` and `https://app.example.com/callback/`
+are different URIs. Register every environment you will actually use —
+production, staging, and your local dev URL — or authorize will reject the
+request. Mobile apps register their custom scheme, e.g. `yourapp://auth`.
+:::
 
-📧 **Email:** [developers@yeboid.com](mailto:developers@yeboid.com)
+::: danger Don't pick the wallet scopes
+The portal's scope picker still lists `wallet` and `wallet:transact`, but
+YeboID has **no wallet backend** and the API rejects them. Selecting either
+makes registration fail with `Invalid scopes`. Leave them unticked — the
+picker is ahead of the server here.
+:::
 
-📱 **WhatsApp:** [+268 78 422 613](https://wa.me/26878422613)
+## What you get back
 
-</div>
+```json
+{
+  "success": true,
+  "app": { "id": "...", "name": "My App", "slug": "my-app" },
+  "credentials": {
+    "clientId": "yebo_1a2b3c...",
+    "clientSecret": "yebo_secret_9f8e..."
+  },
+  "warning": "Store the client_secret securely. It will not be shown again."
+}
+```
 
-## What to Include
+::: danger The client secret is shown once
+YeboID stores only a hash of it. If you lose it, you cannot read it back —
+you must rotate it (`POST /apps/:id/rotate-secret`), which invalidates the
+old one.
+:::
 
-When reaching out, please provide:
+### Do you even need the secret?
 
-1. **Company/Developer Name**
-2. **App Name** — What you're building
-3. **App Description** — Brief overview of your use case
-4. **Platform** — Mobile (iOS/Android), Web, or both
-5. **Redirect URIs** — Where to redirect after authentication
-   - Mobile: `yourapp://auth`
-   - Web: `https://yourapp.com/callback`
-6. **Requested Scopes** — What user data you need:
-   - `openid` — Basic authentication
-   - `profile` — Name, avatar
-   - `phone` — Phone number
-   - `email` — Email address (if available)
+| Client type | Uses the secret? |
+|-------------|------------------|
+| Browser SPA, mobile, desktop | **No.** These are *public* clients — PKCE alone authenticates the token request. Never ship a secret in code a user can read. |
+| Server-side web app, backend service | Yes. Send it via `client_secret_basic` or `client_secret_post`. |
 
-## What You'll Receive
+The discovery document advertises `none` in
+`token_endpoint_auth_methods_supported` precisely so public clients can
+complete the flow without one.
 
-Once approved, you'll get:
+## Register via the API
 
-- **Client ID** — Your app's unique identifier
-- **Client Secret** — For server-side apps (keep this secure!)
-- **Redirect URIs** — Approved callback URLs
-- **Documentation** — Integration guides and support
+The portal is a client of the same endpoint discovery advertises as
+`registration_endpoint`. You can call it directly with a **user** access
+token — it registers the app to the signed-in YeboID user, exactly as the
+portal does.
 
-## Integration Support
+```bash
+curl -X POST https://api.yeboid.com/apps \
+  -H "Authorization: Bearer USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My App",
+    "slug": "my-app",
+    "redirectUris": ["https://app.example.com/callback"],
+    "scopes": ["openid", "profile", "phone"]
+  }'
+```
 
-We're here to help you integrate successfully:
+Returns `201` with the payload above.
 
-- Technical documentation
-- Code examples
-- Direct support during integration
-- Testing assistance
+**Errors:**
 
-## Try the Demo First
+| Status | Meaning |
+|--------|---------|
+| 400 | Validation failed, or `Invalid scopes` (the response lists `invalidScopes` and `availableScopes`) |
+| 401 | Missing or invalid access token |
+| 409 | An app with this slug already exists |
 
-While waiting for approval, explore our [Demo App](/demo-app) to see YeboID in action and understand the user experience.
+See the [OAuth & OIDC reference](/api-reference/oauth) for the full app
+management surface — listing, updating, rotating the secret, and API keys.
 
----
+## Next steps
 
-<div style="text-align: center; margin-top: 40px; padding: 20px; background: rgba(212,175,55,0.05); border-radius: 12px;">
+- [OAuth2 + PKCE walkthrough](/authentication/pkce) — the flow end to end
+- [Node.js SDK](/node-sdk/) · [Web / React SDK](/web-sdk/) · [Flutter SDK](/flutter-sdk/)
+- [Webhooks](/webhooks) — get notified when a user's profile or KYC changes
 
-**Ready to integrate?**
+## Need help?
 
-[Contact Us →](mailto:developers@yeboid.com)
-
-</div>
+- 📧 [developers@yeboid.com](mailto:developers@yeboid.com)
+- 📱 [WhatsApp +268 78 422 613](https://wa.me/26878422613)
