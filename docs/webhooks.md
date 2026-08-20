@@ -148,6 +148,37 @@ Subscribe to any of these event names:
 | `session.created` | A user signs in. |
 | `session.destroyed` | A user's session ends (logout or revocation). |
 
+### Which events you actually receive {#delivery-scope}
+
+Subscribing is not the same as receiving. YeboID is the PII boundary for every Yebo
+product, so it will not stream a user's events to an app that user never connected.
+Every delivery is authorized against the subscribing app before it is sent, and an event
+that cannot be authorized is delivered to **no one** rather than broadcast.
+
+| Events | You receive them for |
+|--------|----------------------|
+| `user.created`, `user.updated`, `user.deleted`, `session.created`, `session.destroyed` | Users who hold a **live grant** for your app — they signed in with YeboID and have not disconnected you. |
+| `user.kyc.submitted`, `user.kyc.verified`, `user.kyc.rejected` | Users whose live grant **also carries a `kyc` or `kyc:full` scope**. Requesting the scope at authorize time is what opens this stream. |
+| `app.authorized`, `app.revoked` | Only your own app — these are never broadcast to anyone else. |
+
+Two consequences worth designing around:
+
+- **`user.created` is not a global signup feed.** It fires for a user only once your app
+  holds a grant for them, so treat it as "a user connected and is new to you", not as
+  "someone, somewhere, signed up for YeboID".
+- **`app.revoked` still reaches you.** It fires as the grant is being torn down, and is
+  deliberately exempt from the grant check so you are told to stop using tokens you can
+  no longer refresh.
+
+::: warning Subscribed but receiving nothing?
+The usual cause is the gate above rather than a broken endpoint — most often KYC events
+without a `kyc` scope on the grant. Check the [delivery log](#delivery-log): a request
+that was never authorized produces no delivery attempt at all, whereas a delivered-but-
+failing endpoint shows attempts with error responses. Use
+`POST /webhooks/test` (see [Local development](#local-development)) to confirm the
+endpoint itself is reachable.
+:::
+
 ### Example payloads
 
 `user.kyc.verified`:
