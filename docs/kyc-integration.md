@@ -67,13 +67,12 @@ if (verifyUrl != null) {
 ### API
 
 ```bash
-POST https://api.yeboid.com/api/v1/kyc/start
+POST https://api.yeboid.com/verification/start
 Authorization: Bearer ACCESS_TOKEN
 Content-Type: application/json
 
 {
-  "country": "SZ",
-  "return_url": "yourapp://kyc-complete"
+  "callback": "yourapp://kyc-complete"
 }
 ```
 
@@ -81,18 +80,33 @@ Content-Type: application/json
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `country` | No | ISO 3166-1 alpha-2 country code (auto-detected if omitted) |
-| `return_url` | No | URL to redirect after completion |
+| `callback` | No | Absolute URL YeboVerify returns the user to when the flow ends |
+
+There is no `country` parameter — YeboID resolves the country server-side
+from the extracted ID document (falling back to the phone's E.164 prefix),
+so nothing the client sends can influence it.
 
 **Response:**
 
 ```json
 {
-  "verification_url": "https://verify.yeboid.com/v/sess_abc123",
-  "session_id": "sess_abc123",
-  "expires_at": "2024-02-28T12:00:00Z"
+  "success": true,
+  "verifyUrl": "https://verify.yeboverify.com/v/sess_abc123",
+  "expiresIn": 3600
 }
 ```
+
+Send the user to `verifyUrl`. The response carries no session id — YeboID
+tracks the session internally and reports the outcome through
+[webhooks](/webhooks) and `GET /verification/status`.
+
+**Errors:**
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| 401 | — | Missing or invalid access token |
+| 404 | — | User not found |
+| 409 | `ALREADY_VERIFIED` | User is already `VERIFIED`; there is nothing to start |
 
 ## Checking Status
 
@@ -116,7 +130,7 @@ if (user.isVerified) {
 ### API
 
 ```bash
-GET https://api.yeboid.com/api/v1/kyc/status
+GET https://api.yeboid.com/verification/status
 Authorization: Bearer ACCESS_TOKEN
 ```
 
@@ -124,14 +138,37 @@ Authorization: Bearer ACCESS_TOKEN
 
 ```json
 {
-  "status": "VERIFIED",
-  "country": "SZ",
-  "verified_at": "2024-01-15T10:30:00Z",
-  "document_type": "NATIONAL_ID",
-  "full_name": "John Doe",
-  "date_of_birth": "1990-05-15"
+  "success": true,
+  "kycStatus": "VERIFIED",
+  "kycData": {
+    "verificationId": "ver_abc123",
+    "decision": "approved",
+    "confidence": 0.97,
+    "faceScore": 0.94,
+    "ocrConfidence": 0.99,
+    "extracted": {
+      "names": "John",
+      "surname": "Doe",
+      "dateOfBirth": "1990-05-15",
+      "nationality": "SZ"
+    },
+    "verifiedAt": "2024-01-15T10:30:00Z"
+  }
 }
 ```
+
+`kycData` is stored encrypted at rest and decrypted only for the
+authenticated owner on this endpoint. It is `null` until a decision webhook
+lands, and the exact keys inside `extracted` come from YeboVerify's OCR —
+treat every one of them as optional.
+
+::: warning This endpoint is for the YeboID account app
+`/verification/status` is authenticated with a **user** access token and is
+how the YeboID app polls its own user. Third-party OAuth apps should read
+KYC state from [`GET /oauth/userinfo`](/api-reference/oauth) with the `kyc`
+or `kyc:full` scope, or subscribe to the `user.kyc.verified` /
+`user.kyc.rejected` [webhooks](/webhooks), rather than calling this.
+:::
 
 ## KYC Status Values
 

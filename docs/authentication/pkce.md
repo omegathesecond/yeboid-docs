@@ -147,7 +147,7 @@ sessionStorage.setItem('pkce_verifier', codeVerifier);
 ### 4. Include Challenge in Auth Request
 
 ```
-https://yeboid.com/authorize?
+https://yeboid.com/oauth/authorize?
   response_type=code&
   client_id=YOUR_CLIENT_ID&
   redirect_uri=yourapp://auth&

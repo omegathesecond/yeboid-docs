@@ -1,63 +1,106 @@
-# API Reference
+# REST API Reference
 
-RESTful API for YeboID authentication and identity management.
+The first-party REST API behind YeboID's phone + OTP + PIN login and the
+identity/account surface the YeboID app is built on.
+
+For the OAuth 2.0 / OpenID Connect endpoints your app integrates against
+(`/oauth/*`, discovery, JWKS), see the
+[OAuth & OIDC reference](/api-reference/oauth) — that is the surface
+third-party products should use.
+
+::: warning Which surface should I use?
+If you are integrating YeboID into your product, you almost certainly want
+the [OAuth & OIDC endpoints](/api-reference/oauth), not the routes on this
+page. The `/auth/*` and `/users/*` routes are the account-holder API: they
+authenticate a **YeboID user directly** with a first-party token and are
+what the YeboID login/account app itself calls. They do not accept OAuth
+access tokens issued to your `client_id`.
+:::
 
 ## Base URLs
 
 | Environment | URL |
 |-------------|-----|
 | Production | `https://api.yeboid.com` |
-| Staging | `https://api-staging.yeboid.com` |
+| Development | `https://dev-api.yeboid.com` |
 
 ## Authentication
 
-### Public Endpoints
+### Public endpoints
 
 No authentication required:
-- `POST /auth/*` (except logout)
-- `GET /users/@:handle`
-- `GET /users/handle/check`
-- `GET /health`
 
-### Protected Endpoints
+- `GET /health`, `GET /ready`
+- `POST /auth/start`, `POST /auth/otp/send`, `POST /auth/otp/verify`
+- `POST /auth/login/pin`, `POST /auth/pin/reset`
+- `POST /auth/refresh`, `POST /auth/logout`
+- `POST /auth/recovery/*`
+- `GET /auth/clients/:clientId/otp-mode`
+- `GET /users/@:handle`, `GET /users/handle/check`, `GET /users/handle/suggestions`
 
-Include the access token in the Authorization header:
+### Protected endpoints
+
+Everything else takes a first-party access token from
+`/auth/otp/verify` or `/auth/login/pin`:
 
 ```http
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 ```
 
-## Request Format
+Missing or malformed header → `401 { "success": false, "error": "Missing or
+invalid authorization header" }`. Invalid or expired token → `401 { "success":
+false, "error": "Invalid or expired token" }`.
+
+## Request format
 
 ```http
 Content-Type: application/json
-Authorization: Bearer <token>
-X-Request-ID: <uuid>   # Optional, for tracing
+Authorization: Bearer <accessToken>
 ```
 
-## Response Format
+## Response format
+
+Responses are **flat** — fields sit at the top level next to `success`.
+There is no `data` envelope.
 
 ### Success
 
 ```json
 {
   "success": true,
-  "data": { ... }
+  "user": { "id": "..." }
 }
 ```
 
 ### Error
 
+`error` is a **human-readable string**, not an object. Machine-readable
+`code` is present on the errors that define one; `retryAfterMs` appears on
+rate-limit and lockout responses.
+
 ```json
 {
   "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable message",
-    "details": { ... }
-  }
+  "error": "Too many OTP requests. Try again later.",
+  "code": "OTP_SEND_RATE_LIMITED",
+  "retryAfterMs": 840000
 }
 ```
+
+Body validation failures (Zod) return `400` with a `details` array instead
+of a `code`:
+
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "details": [{ "field": "phone", "message": "Invalid phone format" }]
+}
+```
+
+Unhandled server faults return a deliberately generic
+`500 { "success": false, "error": "Internal server error" }` — the detail
+goes to Sentry and the server logs, never to the client.
 
 ---
 
@@ -65,15 +108,30 @@ X-Request-ID: <uuid>   # Optional, for tracing
 
 ### <span class="api-method get">GET</span> /health
 
-Check API status.
+Liveness. Does not touch the database.
 
-**Response:**
+```json
+{ "status": "ok", "service": "yeboid", "version": "1.0.0" }
+```
+
+---
+
+### <span class="api-method get">GET</span> /ready
+
+Readiness — runs `SELECT 1` against Postgres.
+
+```json
+{ "status": "ready", "service": "yeboid", "version": "1.0.0" }
+```
+
+When the database is unreachable, `503`:
 
 ```json
 {
-  "status": "ok",
+  "status": "unavailable",
+  "service": "yeboid",
   "version": "1.0.0",
-  "timestamp": "2026-03-18T20:00:00Z"
+  "error": "database_unreachable"
 }
 ```
 
@@ -81,152 +139,199 @@ Check API status.
 
 ## Authentication
 
+Login is always two calls: `/auth/start` decides *which* credential to ask
+for, then either `/auth/login/pin` or `/auth/otp/verify` exchanges it for
+tokens. Both token-minting endpoints also set the `yeboid_session` SSO
+cookie, which is what lets `/oauth/authorize` mint codes for this user
+later without a second login.
+
+### <span class="api-method post">POST</span> /auth/start
+
+First step of every login. Returns `pin` for a returning user who has set a
+PIN; otherwise sends an OTP and returns `otp`, so the client can render the
+code screen immediately.
+
+**Request:**
+
+```json
+{ "phone": "+26878422613" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `phone` | string | Yes | E.164, `+` followed by 10–15 digits |
+
+**Response — PIN user:**
+
+```json
+{ "success": true, "mode": "pin" }
+```
+
+**Response — OTP user (code already sent):**
+
+```json
+{
+  "success": true,
+  "mode": "otp",
+  "expiresIn": 300,
+  "deliveredVia": "whatsapp"
+}
+```
+
+`deliveredVia` is `"whatsapp"` or `"sms"`. The `pin` branch never burns the
+OTP send budget.
+
+**Errors:** `429 OTP_SEND_RATE_LIMITED` (with `retryAfterMs`).
+
+---
+
+### <span class="api-method get">GET</span> /auth/clients/:clientId/otp-mode
+
+Lets a login screen know, before collecting a phone number, whether the
+requesting OAuth client forces or forbids WhatsApp delivery — so it can
+label the input correctly on first paint.
+
+**Response:**
+
+```json
+{ "mode": "default" }
+```
+
+| `mode` | Meaning |
+|--------|---------|
+| `default` | WhatsApp first, SMS fallback |
+| `whatsapp-required` | WhatsApp only; SMS fallback refused |
+| `sms-only` | SMS only |
+
+Always `200` — an unknown or deactivated `clientId` returns `default`
+rather than an error, so this endpoint can't be used to enumerate the
+client registry. A throttled caller gets `429 { "mode": "default" }`.
+
+---
+
 ### <span class="api-method post">POST</span> /auth/otp/send
 
-Send OTP to phone number.
+Send a login code. Usually unnecessary — `/auth/start` already sends one on
+the `otp` branch. Use this to resend.
 
 **Request:**
 
 ```json
 {
   "phone": "+26878422613",
-  "purpose": "signup"
+  "clientId": "yebo_1a2b3c...",
+  "channel": "sms"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `phone` | string | Yes | E.164 format |
-| `purpose` | string | Yes | `signup` or `pin_reset` |
+| `phone` | string | Yes | E.164 |
+| `clientId` | string | No | OAuth client, so its WhatsApp flags apply |
+| `channel` | string | No | Only `"sms"` is accepted — the sole channel a client may force |
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": {
-    "expires_in": 300,
-    "message": "OTP sent to +268****613"
-  }
+  "message": "OTP sent",
+  "expiresIn": 300,
+  "deliveredVia": "sms"
 }
 ```
+
+**Errors:**
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| 400 | `WHATSAPP_REQUIRED` | Client requires WhatsApp; `channel: "sms"` refused |
+| 429 | `OTP_SEND_RATE_LIMITED` | Per-phone or per-IP send budget spent |
 
 ---
 
 ### <span class="api-method post">POST</span> /auth/otp/verify
 
-Verify OTP code.
+Exchange a code for tokens. **Creates the account** if the phone number is
+new — this is the signup path; there is no separate signup endpoint.
 
 **Request:**
 
 ```json
-{
-  "phone": "+26878422613",
-  "code": "123456",
-  "purpose": "signup"
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "verified": true,
-    "temp_token": "eyJ...",
-    "expires_in": 600
-  }
-}
-```
-
----
-
-### <span class="api-method post">POST</span> /auth/signup
-
-Create account after OTP verification.
-
-**Request:**
-
-```json
-{
-  "temp_token": "eyJ...",
-  "pin": "1234",
-  "handle": "laslie",
-  "name": "Laslie Georges Jr."
-}
+{ "phone": "+26878422613", "otp": "123456" }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `temp_token` | string | Yes | From OTP verify |
-| `pin` | string | Yes | 4-6 digits |
-| `handle` | string | Yes | 3-30 chars, lowercase |
-| `name` | string | No | Display name |
+| `phone` | string | Yes | E.164 |
+| `otp` | string | Yes | Exactly 6 digits |
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": {
-    "user": {
-      "id": "uuid",
-      "phone": "+26878422613",
-      "handle": "laslie",
-      "name": "Laslie Georges Jr.",
-      "avatar_url": null,
-      "kyc_status": "none",
-      "created_at": "2026-03-18T20:00:00Z"
-    },
-    "access_token": "eyJ...",
-    "refresh_token": "abc123...",
-    "expires_in": 900
-  }
+  "user": {
+    "id": "clx...",
+    "phone": "+26878422613",
+    "handle": "laslie",
+    "name": "Laslie Georges Jr.",
+    "avatar": "https://...",
+    "kycStatus": "VERIFIED"
+  },
+  "hasPin": false,
+  "accessToken": "eyJ...",
+  "refreshToken": "abc123...",
+  "expiresIn": 900
 }
 ```
 
+`expiresIn` is the access token's lifetime in seconds (15 minutes).
+
+**Errors:**
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| 401 | — | Invalid or expired OTP. Adds `attemptsRemaining` only at ≤2 left |
+| 409 | `PIN_REQUIRED` | Account has a PIN — use `/auth/login/pin` or `/auth/pin/reset` |
+| 429 | `OTP_LOCKED` | Too many wrong codes; the code is dead, request a new one |
+
 ---
 
-### <span class="api-method post">POST</span> /auth/signin
+### <span class="api-method post">POST</span> /auth/login/pin
 
-Sign in with phone and PIN.
+Returning-user login with phone + PIN.
 
 **Request:**
 
 ```json
-{
-  "phone": "+26878422613",
-  "pin": "1234"
-}
+{ "phone": "+26878422613", "pin": "123456" }
 ```
 
-**Response:**
+PINs are **exactly 6 digits**.
 
-```json
-{
-  "success": true,
-  "data": {
-    "user": { ... },
-    "access_token": "eyJ...",
-    "refresh_token": "abc123...",
-    "expires_in": 900
-  }
-}
-```
+**Response:** identical shape to `/auth/otp/verify`, with `hasPin: true`.
+
+**Errors:**
+
+| Status | `code` | Meaning |
+|--------|--------|---------|
+| 401 | `PIN_INVALID` | Wrong PIN, or no such account. Adds `attemptsRemaining` at ≤2 left |
+| 423 | `PIN_LOCKED` | 5 wrong attempts in 15 min. Recover via `/auth/pin/reset` |
+
+Unknown phone and wrong PIN return the *same* error, so this endpoint can't
+be used to test whether a number is registered.
 
 ---
 
 ### <span class="api-method post">POST</span> /auth/refresh
 
-Refresh access token.
+Rotate tokens.
 
 **Request:**
 
 ```json
-{
-  "refresh_token": "abc123..."
-}
+{ "refreshToken": "abc123..." }
 ```
 
 **Response:**
@@ -234,297 +339,247 @@ Refresh access token.
 ```json
 {
   "success": true,
-  "data": {
-    "access_token": "eyJ...",
-    "refresh_token": "def456...",
-    "expires_in": 900
-  }
+  "accessToken": "eyJ...",
+  "refreshToken": "def456...",
+  "expiresIn": 900
 }
 ```
 
-::: warning Token Rotation
-Refresh tokens are rotated on each use. The old token is invalidated.
+::: warning Token rotation
+Refresh tokens rotate on every use — the token you sent is invalidated.
+Persist the new `refreshToken` from the response or the next refresh fails.
 :::
+
+**Errors:** `401 { "error": "Invalid or expired refresh token" }`.
 
 ---
 
 ### <span class="api-method post">POST</span> /auth/logout
 
-Revoke refresh token.
+Revokes the refresh token (when supplied) and destroys the SSO session,
+clearing the `yeboid_session` cookie.
 
-**Headers:** `Authorization: Bearer <access_token>`
+**Request:** `refreshToken` is optional — `{}` is valid and still ends the
+SSO session, which is what a browser-side "sign out" wants.
 
-**Request:**
+```json
+{ "refreshToken": "abc123..." }
+```
+
+**Response:**
+
+```json
+{ "success": true, "message": "Logged out" }
+```
+
+---
+
+## PIN management
+
+### <span class="api-method get">GET</span> /auth/pin/status
+
+**Auth required.** `{ "success": true, "hasPin": true }`
+
+---
+
+### <span class="api-method post">POST</span> /auth/pin/set
+
+**Auth required.** Sets or replaces the PIN. Body `{ "pin": "123456" }`
+(exactly 6 digits) → `{ "success": true, "message": "PIN set successfully" }`.
+
+---
+
+### <span class="api-method post">POST</span> /auth/pin/change
+
+**Auth required.** Body `{ "currentPin": "123456", "newPin": "654321" }` →
+`{ "success": true, "message": "PIN changed successfully" }`.
+
+**Errors:** `401 PIN_INVALID`, `400 PIN_NOT_SET`, `429` with `retryAfterMs`.
+
+---
+
+### <span class="api-method post">POST</span> /auth/pin/verify
+
+**Auth required.** Confirms a sensitive action. Does **not** issue tokens.
+
+Body `{ "pin": "123456" }` → `{ "success": true, "valid": true }`.
+
+**Errors:** `401 PIN_INVALID`, `400 PIN_NOT_SET`, `429` (5 attempts / 15 min).
+
+---
+
+### <span class="api-method post">POST</span> /auth/pin/reset
+
+Forgotten-PIN recovery. Call `/auth/otp/send` first, then post the code
+with the replacement PIN. No access token needed.
+
+```json
+{ "phone": "+26878422613", "otp": "123456", "newPin": "654321" }
+```
+
+**Errors:** `401` invalid/expired OTP, `429 OTP_LOCKED`.
+
+---
+
+## Account recovery (lost phone number)
+
+For a user who no longer controls their login number. Both numbers must be
+proven, and the request is either completed by an email code or queued for
+human review.
+
+### <span class="api-method post">POST</span> /auth/recovery/start
 
 ```json
 {
-  "refresh_token": "abc123..."
+  "phone": "+26878422613",
+  "newPhone": "+26876543210",
+  "note": "Lost my SIM"
 }
 ```
+
+`phone` is the lost number (the account identity), `newPhone` the one the
+user controls now. `note` is optional free text for the reviewer.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "requestId": "rec_abc123",
+  "method": "EMAIL",
+  "message": "Verification code sent to the new number.",
+  "expiresIn": 300
+}
+```
+
+`method` is `EMAIL` when the account has a **verified** email (recovery can
+complete self-service) and `ADMIN` otherwise (an operator must approve).
+
+**Errors:** `400 SAME_PHONE`, `403 ACCOUNT_DISABLED`, `404` no account,
+`409 PHONE_TAKEN`, `429 RATE_LIMITED` / `OTP_SEND_RATE_LIMITED`.
+
+---
+
+### <span class="api-method post">POST</span> /auth/recovery/verify-phone
+
+Proves control of `newPhone` with the code sent above. Returns
+`status: "awaiting_email"` when an email code follows, or
+`status: "awaiting_review"` when it goes to an operator.
+
+---
+
+### <span class="api-method post">POST</span> /auth/recovery/verify-email
+
+Final step of the `EMAIL` path — the code sent to the account's verified
+address.
 
 ---
 
 ## Users
 
-### <span class="api-method get">GET</span> /users/me
+The `/users/*` routes — profile, handles, email verification, sessions,
+connected apps, phone-number change and account deletion — have their own
+page: **[User Management](/api-reference/users)**.
 
-Get authenticated user's profile.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "phone": "+26878422613",
-    "phone_verified": true,
-    "handle": "laslie",
-    "name": "Laslie Georges Jr.",
-    "avatar_url": "https://...",
-    "bio": "Building the future of Africa",
-    "country": "SZ",
-    "language": "en",
-    "kyc_status": "verified",
-    "kyc_country": "SZ",
-    "kyc_verified_at": "2026-03-18T20:00:00Z",
-    "created_at": "2026-03-01T10:00:00Z",
-    "updated_at": "2026-03-18T20:00:00Z"
-  }
-}
-```
-
----
-
-### <span class="api-method patch">PATCH</span> /users/me
-
-Update user profile.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request:**
-
-```json
-{
-  "name": "Laslie G.",
-  "bio": "CEO @ Omevision",
-  "avatar_url": "https://...",
-  "language": "en"
-}
-```
-
-All fields optional. Only include fields to update.
-
----
-
-### <span class="api-method get">GET</span> /users/@:handle
-
-Get public profile by handle.
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "handle": "laslie",
-    "name": "Laslie Georges Jr.",
-    "avatar_url": "https://...",
-    "bio": "Building the future of Africa",
-    "kyc_status": "verified",
-    "created_at": "2026-03-01T10:00:00Z"
-  }
-}
-```
-
-::: tip Privacy
-Phone, country, and language are NOT included in public profiles.
-:::
-
----
-
-### <span class="api-method get">GET</span> /users/handle/check
-
-Check handle availability.
-
-**Query:** `?handle=<handle>`
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "handle": "newhandle",
-    "available": true
-  }
-}
-```
-
----
-
-### <span class="api-method delete">DELETE</span> /users/me
-
-Delete account permanently.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request:**
-
-```json
-{
-  "pin": "1234",
-  "confirmation": "DELETE MY ACCOUNT"
-}
-```
-
-::: danger Irreversible
-This action is irreversible. Data is hard-deleted after 30 days.
-:::
-
----
-
-## Sessions
-
-### <span class="api-method get">GET</span> /sessions
-
-List active sessions.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "sessions": [
-      {
-        "id": "uuid",
-        "device_name": "iPhone 15 Pro",
-        "platform": "ios",
-        "ip_address": "102.xxx.xxx.xxx",
-        "last_used_at": "2026-03-18T20:00:00Z",
-        "created_at": "2026-03-15T10:00:00Z",
-        "current": true
-      }
-    ],
-    "total": 1
-  }
-}
-```
-
----
-
-### <span class="api-method delete">DELETE</span> /sessions/:id
-
-Revoke a session.
-
-**Headers:** `Authorization: Bearer <access_token>`
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `GET /users/me` | User token | Authenticated user's profile |
+| `PATCH /users/me` | User token | Update `name`, `email`, `avatar`, `handle` |
+| `DELETE /users/me` | User token + fresh re-auth | Permanent hard delete |
+| `GET /users/@:handle` | Public | Public profile card |
+| `GET /users/handle/check` | Public | Handle availability |
+| `GET /users/handle/suggestions` | Public | Suggested available handles |
+| `POST /users/me/email/verify/request` | User token | Email a 6-digit code |
+| `POST /users/me/email/verify/confirm` | User token | Confirm the code |
+| `GET /users/me/sessions` | User token | List active sessions |
+| `DELETE /users/me/sessions` | User token | Log out everywhere |
+| `DELETE /users/me/sessions/:id` | User token | Revoke one session |
+| `GET /users/me/connected-apps` | User token | Authorized OAuth apps |
+| `DELETE /users/me/connected-apps/:clientId` | User token | Disconnect an app |
+| `POST /users/me/phone/change/request` | User token | Start a phone change |
+| `POST /users/me/phone/change/confirm` | User token + fresh re-auth | Commit it |
 
 ---
 
 ## KYC
 
-### <span class="api-method get">GET</span> /kyc/status
+KYC is served by the `/verification/*` routes. See
+[KYC with YeboVerify](/kyc-integration) for the full flow.
 
-Get KYC verification status.
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `POST /verification/start` | User token | Open a verification session, returns `verifyUrl` |
+| `GET /verification/status` | User token | Poll `kycStatus` + decrypted `kycData` |
+| `POST /verification/webhook` | HMAC | Inbound from YeboVerify — not for your app |
 
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "status": "verified",
-    "verified_at": "2026-03-18T20:00:00Z",
-    "level": "standard",
-    "documents": ["id_card"]
-  }
-}
-```
+Third-party OAuth apps should read KYC state from
+[`GET /oauth/userinfo`](/api-reference/oauth) with the `kyc` / `kyc:full`
+scope, or subscribe to the `user.kyc.verified` and `user.kyc.rejected`
+[webhooks](/webhooks) — not by calling `/verification/*`.
 
 ---
 
-### <span class="api-method post">POST</span> /kyc/initiate
+## Error codes
 
-Start KYC verification.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "verification_url": "https://verify.yeboid.com/session/abc123",
-    "expires_in": 1800
-  }
-}
-```
-
-Redirect user to `verification_url` to complete KYC.
-
----
-
-## Error Codes
+Codes actually emitted by these routes. Errors without a `code` carry only
+`error` (a message) — always branch on the HTTP status first.
 
 | Code | HTTP | Description |
 |------|------|-------------|
-| `INVALID_REQUEST` | 400 | Malformed request |
-| `INVALID_PHONE` | 400 | Invalid phone format |
-| `INVALID_PIN` | 400 | PIN doesn't meet requirements |
-| `INVALID_HANDLE` | 400 | Invalid handle format |
-| `INVALID_OTP` | 400 | Wrong OTP code |
-| `OTP_EXPIRED` | 400 | OTP has expired |
-| `INVALID_CREDENTIALS` | 401 | Wrong phone or PIN |
-| `INVALID_TOKEN` | 401 | Access token invalid |
-| `TOKEN_EXPIRED` | 401 | Access token expired |
-| `INVALID_REFRESH_TOKEN` | 401 | Refresh token invalid |
-| `ACCOUNT_LOCKED` | 403 | Account temporarily locked |
-| `FORBIDDEN` | 403 | Not allowed |
-| `NOT_FOUND` | 404 | Resource not found |
-| `PHONE_NOT_FOUND` | 404 | Phone not registered |
-| `HANDLE_TAKEN` | 409 | Handle already in use |
-| `HANDLE_RESERVED` | 409 | Handle is reserved |
-| `PHONE_EXISTS` | 409 | Phone already registered |
-| `HANDLE_COOLDOWN` | 429 | Must wait between handle changes |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Server error |
+| `WHATSAPP_REQUIRED` | 400 | Client mandates WhatsApp; SMS fallback refused |
+| `NO_EMAIL` | 400 | No email address on file to verify |
+| `INVALID_CODE` | 400 | Wrong or expired email verification code |
+| `SAME_PHONE` | 400 | New number equals the current one |
+| `HANDLE_INVALID` | 400 | Handle fails format/length rules |
+| `PIN_NOT_SET` | 400 | Action needs a PIN the user hasn't set |
+| `PIN_REQUIRED` | 400 | PIN required to confirm this action |
+| `OTP_REQUIRED` | 400 | Verification code required to confirm this action |
+| `PIN_INVALID` | 401 | Wrong PIN |
+| `OTP_INVALID` | 401 | Wrong or expired code on a re-auth step |
+| `PIN_REQUIRED` | 409 | On `/auth/otp/verify`: account has a PIN, use PIN login |
+| `ACCOUNT_DISABLED` | 403 | Account is banned |
+| `account_disabled` | 403 | Same condition on the OAuth paths (OAuth-style casing) |
+| `HANDLE_TAKEN` | 409 | Handle already taken or reserved |
+| `PHONE_TAKEN` | 409 | Phone already belongs to another account |
+| `ALREADY_VERIFIED` | 409 | Email already verified / user already KYC-verified |
+| `PIN_LOCKED` | 423 | PIN login locked after repeated failures |
+| `OTP_SEND_RATE_LIMITED` | 429 | Send budget spent (per phone or per IP) |
+| `OTP_LOCKED` | 429 | Code locked after too many wrong guesses |
+| `RATE_LIMITED` | 429 | Generic per-user attempt limiter |
 
 ---
 
-## Rate Limits
+## Rate limits
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| `POST /auth/otp/send` | 3 | 1 hour |
-| `POST /auth/signin` | 5 | 15 minutes |
-| `POST /auth/otp/verify` | 5 | per code |
-| `GET /users/handle/check` | 30 | 1 minute |
-| All other endpoints | 100 | 1 minute |
+| Surface | Limit | Window |
+|---------|-------|--------|
+| OTP send, per phone | 3 | 15 min |
+| OTP send, per IP | 15 | 15 min |
+| OTP verify, per code | 5 wrong guesses | code locked 15 min |
+| `POST /auth/login/pin`, per phone | 5 | 15 min → `423 PIN_LOCKED` |
+| `POST /auth/pin/verify` + `/pin/change`, per user | 5 | 15 min |
+| Email verify send, per user | 3 | 15 min |
+| Email verify confirm, per user | 5 | 15 min |
+| Account delete + phone-change confirm, per user | 5 | 15 min |
+| `GET /auth/clients/:clientId/otp-mode`, per IP | 60 | 5 min |
 
-**Response headers:**
+The OTP send budget is **shared** across `/auth/start`, `/auth/otp/send`
+and `/users/me/phone/change/request`, so one number can't be bombed by
+spreading sends across endpoints.
 
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1710770000
-```
+::: warning No rate-limit headers
+The API does not emit `X-RateLimit-*` headers. Read `retryAfterMs` from the
+429 body instead.
+:::
+
+Most limiters are in-memory per Cloud Run instance, so the effective
+ceiling across `N` instances is `limit × N`. The brute-force-critical
+control — the OTP verify lockout — is database-backed and therefore exact.
 
 ---
 
 ## SDKs
 
-- [Flutter SDK](/flutter-sdk) — Official Flutter package
-- More SDKs coming soon
-
----
-
-*API Version: 1.0*
+- [Node.js SDK](/node-sdk/) — Express middleware + token verification for backends
+- [Web / React SDK](/web-sdk/) — browser PKCE flow with React bindings
+- [Flutter SDK](/flutter-sdk/) — official Flutter package

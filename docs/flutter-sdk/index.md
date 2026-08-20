@@ -21,7 +21,9 @@ dependencies:
       ref: v1.0.3
 ```
 
-The SDK requires `flutter_appauth ^8` in the consuming app.
+The SDK depends on `flutter_appauth '>=7.0.0 <9.0.0'`, so a consuming app may pin
+either `^7.0.0` or `^8.0.0` — the range is deliberately wide so apps already on 8.x
+aren't blocked.
 
 Run:
 

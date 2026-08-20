@@ -6,8 +6,8 @@ YeboID uses JWT (JSON Web Tokens) for authentication. Understanding how to manag
 
 | Token | Purpose | Lifetime | Storage |
 |-------|---------|----------|---------|
-| Access Token | API authentication | 1 hour | Memory |
-| Refresh Token | Get new access tokens | 30 days | Secure storage |
+| Access Token | API authentication | 15 minutes | Memory |
+| Refresh Token | Get new access tokens | 60 days | Secure storage |
 | ID Token | User identity claims | 1 hour | Optional |
 
 ## Access Token
@@ -28,7 +28,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
     "kid": "key-id-123"
   },
   "payload": {
-    "iss": "https://yeboid.com",
+    "iss": "https://api.yeboid.com",
     "sub": "usr_abc123",
     "aud": "your-client-id",
     "exp": 1709254800,
@@ -42,7 +42,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 
 | Claim | Description |
 |-------|-------------|
-| `iss` | Issuer (always `https://yeboid.com`) |
+| `iss` | Issuer (`https://api.yeboid.com` in production) |
 | `sub` | Subject (user ID) |
 | `aud` | Audience (your client ID) |
 | `exp` | Expiration timestamp |
@@ -68,14 +68,23 @@ Response:
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
   "token_type": "Bearer",
-  "expires_in": 3600,
+  "expires_in": 900,
   "refresh_token": "new-refresh-token...",
   "scope": "openid profile phone"
 }
 ```
 
 ::: warning Refresh Token Rotation
-YeboID uses refresh token rotation. Each time you use a refresh token, a new one is issued and the old one is invalidated. Always store the new refresh token.
+YeboID uses single-use refresh token rotation. Each time you use a refresh token, a new
+one is issued and the old one is invalidated — always store the new refresh token.
+Presenting an already-used refresh token is treated as token theft: the **entire** token
+family for that grant is revoked.
+:::
+
+::: tip Down-scoping
+You may pass a `scope` parameter on a refresh to request a **narrower** set of scopes
+than originally granted. You can never widen scope on refresh — that fails with
+`invalid_scope`.
 :::
 
 ## ID Token
@@ -84,17 +93,18 @@ The ID token contains identity claims about the authenticated user:
 
 ```json
 {
-  "iss": "https://yeboid.com",
+  "iss": "https://api.yeboid.com",
   "sub": "usr_abc123",
   "aud": "your-client-id",
   "exp": 1709254800,
   "iat": 1709251200,
   "auth_time": 1709251180,
   "nonce": "random-nonce",
-  "phone": "+26878422613",
-  "phone_verified": true,
   "name": "John Doe",
+  "preferred_username": "johndoe",
   "picture": "https://api.yeboid.com/avatars/usr_abc123.jpg",
+  "phone_number": "+26878422613",
+  "phone_number_verified": true,
   "kyc_status": "VERIFIED"
 }
 ```
@@ -217,11 +227,17 @@ async function verifyToken(token) {
   const key = await client.getSigningKey(decoded.header.kid);
   
   return jwt.verify(token, key.getPublicKey(), {
-    issuer: 'https://yeboid.com',
+    issuer: 'https://api.yeboid.com',
     audience: 'your-client-id',
   });
 }
 ```
+
+::: tip Use the SDK instead
+The [Node.js SDK](/node-sdk/) does this verification for you — JWKS fetch, caching, and
+`issuer`/`audience` checks — via `yeboid.authenticate()`. Hand-rolling JWKS verification
+is only necessary if you can't use the SDK.
+:::
 
 ### JWKS Endpoint
 

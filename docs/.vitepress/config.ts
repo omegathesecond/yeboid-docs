@@ -12,7 +12,10 @@ export default defineConfig({
     ['meta', { property: 'og:description', content: 'Universal Authentication for Africa' }],
   ],
   
-  ignoreDeadLinks: true,
+  // Fail the build on broken internal links. Docs rot silently otherwise —
+  // a renamed page leaves dead links that nothing catches until a developer
+  // hits a 404 mid-integration.
+  ignoreDeadLinks: false,
   
   themeConfig: {
     logo: '/logo.svg',
@@ -20,8 +23,15 @@ export default defineConfig({
     
     nav: [
       { text: 'Guide', link: '/getting-started' },
-      { text: 'Flutter SDK', link: '/flutter-sdk/' },
-      { text: 'API Reference', link: '/api-reference' },
+      {
+        text: 'SDKs',
+        items: [
+          { text: 'Node.js', link: '/node-sdk/' },
+          { text: 'Web / React', link: '/web-sdk/' },
+          { text: 'Flutter', link: '/flutter-sdk/' }
+        ]
+      },
+      { text: 'API Reference', link: '/api-reference/oauth' },
       { text: 'Register App', link: '/register-app' },
       { text: 'yeboid.com', link: 'https://yeboid.com' }
     ],
@@ -44,8 +54,16 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Flutter SDK',
+        text: 'SDKs',
         collapsed: false,
+        items: [
+          { text: 'Node.js SDK', link: '/node-sdk/' },
+          { text: 'Web / React SDK', link: '/web-sdk/' }
+        ]
+      },
+      {
+        text: 'Flutter SDK',
+        collapsed: true,
         items: [
           { text: 'Installation', link: '/flutter-sdk/' },
           { text: 'YeboIDProvider', link: '/flutter-sdk/provider' },
@@ -60,7 +78,8 @@ export default defineConfig({
       {
         text: 'API Reference',
         items: [
-          { text: 'Endpoints', link: '/api-reference' },
+          { text: 'OAuth & OIDC', link: '/api-reference/oauth' },
+          { text: 'REST Endpoints', link: '/api-reference' },
           { text: 'User Management', link: '/api-reference/users' }
         ]
       },
@@ -93,7 +112,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/omegathesecond/yeboid-docs/edit/main/docs/:path',
+      pattern: 'https://github.com/omegathesecond/yeboid-docs/edit/master/docs/:path',
       text: 'Edit this page'
     }
   },
@@ -102,6 +121,13 @@ export default defineConfig({
     theme: {
       light: 'github-light',
       dark: 'one-dark-pro'
+    },
+    // Shiki ships no `gradle` grammar, so ```gradle fences silently fell back
+    // to plain text. Gradle build files are Groovy (build.gradle) or Kotlin
+    // (build.gradle.kts) source, so alias each onto the grammar it really is.
+    languageAlias: {
+      gradle: 'groovy',
+      'gradle.kts': 'kotlin'
     }
   }
 })

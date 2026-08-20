@@ -51,7 +51,7 @@ The Flutter SDK handles PKCE automatically. You don't need to implement this you
 Redirect the user to the YeboID authorization endpoint:
 
 ```
-GET https://yeboid.com/authorize
+GET https://yeboid.com/oauth/authorize
   ?response_type=code
   &client_id=YOUR_CLIENT_ID
   &redirect_uri=yourapp://auth
@@ -100,12 +100,16 @@ Response:
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
   "token_type": "Bearer",
-  "expires_in": 3600,
+  "expires_in": 900,
   "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...",
   "id_token": "eyJhbGciOiJSUzI1NiIs...",
   "scope": "openid profile phone"
 }
 ```
+
+`expires_in` is in seconds — access tokens live **15 minutes**. The `refresh_token` is
+only returned when the `offline_access` scope (or a long-lived grant) applies; see
+[Tokens](/authentication/tokens).
 
 ## Step 5: Access User Info
 
@@ -121,25 +125,40 @@ Response:
 ```json
 {
   "sub": "usr_abc123",
-  "phone": "+26878422613",
-  "phone_verified": true,
   "name": "John Doe",
+  "preferred_username": "johndoe",
   "picture": "https://api.yeboid.com/avatars/usr_abc123.jpg",
+  "phone_number": "+26878422613",
+  "phone_number_verified": true,
   "kyc_status": "VERIFIED",
-  "kyc_country": "SZ",
-  "updated_at": 1709251200
+  "country": "SZ",
+  "currency": "SZL",
+  "currency_symbol": "E"
 }
 ```
 
+Claims are returned only when the matching scope was granted (and the data exists).
+
 ## Available Scopes
+
+These are the scopes the YeboID API actually accepts. Requesting anything outside this
+list fails with `invalid_scope`.
 
 | Scope | Description | Claims |
 |-------|-------------|--------|
-| `openid` | Required for OIDC | `sub` |
-| `profile` | Basic profile info | `name`, `picture`, `updated_at` |
-| `phone` | Phone number | `phone`, `phone_verified` |
-| `email` | Email address (if available) | `email`, `email_verified` |
-| `kyc` | KYC verification status | `kyc_status`, `kyc_country` |
+| `openid` | Required for OIDC. Provides the user ID. | `sub` |
+| `profile` | Read basic profile (name, handle, avatar). | `name`, `preferred_username`, `picture` |
+| `profile:write` | Update the user's profile. | — |
+| `phone` | Read the phone number. | `phone_number`, `phone_number_verified` |
+| `email` | Read the email address (if available). | `email`, `email_verified` |
+| `kyc` | Read KYC status, country, and currency. | `kyc_status`, `country`, `currency`, `currency_symbol` |
+| `kyc:full` | Read the full KYC verification data. | `kyc_status`, `kyc_data` |
+| `offline_access` | Stay signed in between sessions — issues a refresh token. | — |
+
+::: warning Wallet scopes
+`wallet` and `wallet:transact` are **not** currently supported — there is no wallet
+backend yet, and the API rejects them with `invalid_scope`. Don't request them.
+:::
 
 ## Error Handling
 
