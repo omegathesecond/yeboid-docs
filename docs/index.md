@@ -13,11 +13,11 @@ hero:
       text: Get Started
       link: /getting-started
     - theme: alt
-      text: Flutter SDK
-      link: /flutter-sdk
-    - theme: alt
       text: API Reference
-      link: /api-reference
+      link: /api-reference/oauth
+    - theme: alt
+      text: Register Your App
+      link: /register-app
 
 features:
   - icon: 📱
@@ -33,16 +33,32 @@ features:
     details: Industry-standard security with PKCE code challenge. Secure mobile and web authentication.
   
   - icon: 🎨
-    title: Pre-built Widgets
-    details: Beautiful Flutter widgets with Midnight Gold theme. Login buttons, avatars, profile cards — all ready to use.
+    title: Pre-built Flutter Widgets
+    details: Login buttons, avatars, profile cards and verify buttons in the Midnight Gold theme — drop them straight into your app.
+    link: /flutter-sdk/
+    linkText: Flutter SDK
+  
+  - icon: 🖥️
+    title: Backend SDK
+    details: Express middleware, JWKS-cached token verification and the full OAuth flow for Node/TypeScript services.
+    link: /node-sdk/
+    linkText: Node.js SDK
+  
+  - icon: 🌐
+    title: Browser SDK
+    details: PKCE in the browser with React bindings — a provider, a hook, and an authenticated fetch that refreshes for you.
+    link: /web-sdk/
+    linkText: Web / React SDK
   
   - icon: 🌍
     title: Made for Africa
     details: E.164 phone numbers, regional ID document support, and optimized for African mobile networks.
   
-  - icon: ⚡
-    title: Easy Integration
-    details: Add authentication to your app in minutes. Wrap your app, add a button, done.
+  - icon: 🔔
+    title: Webhooks
+    details: Subscribe to profile, session and KYC events with HMAC-signed, retried delivery.
+    link: /webhooks
+    linkText: Webhook guide
 ---
 
 <style>
