@@ -15,8 +15,12 @@ YeboID provides:
 
 Before integrating YeboID, you'll need:
 
-1. **A YeboID Application** — Register at [yeboid.com](https://yeboid.com) to get your `client_id`
-2. **Redirect URI** — Set up a custom URL scheme for your app (e.g., `yourapp://auth`)
+1. **A YeboID Application** — create one yourself in the developer portal at
+   [yeboid.com/developer/apps](https://yeboid.com/developer/apps) to get your
+   `client_id`. It is self-service; see [Register Your App](/register-app).
+2. **Redirect URI** — registered with the app and matched **exactly** at authorize
+   time. Mobile apps use a custom scheme (e.g. `yourapp://auth`), web apps a full
+   URL (e.g. `https://yourapp.com/callback`).
 
 ## Integration Options
 
@@ -45,7 +49,7 @@ YeboIDProvider(
 
 For backend integrations or custom implementations:
 
-- Authorization request (send the **browser** here): `https://yeboid.com/oauth/authorize` — the hosted HTML login. The OIDC discovery document advertises `authorization_endpoint` as `https://api.yeboid.com/oauth/authorize` (the JSON API the login UI calls); don't point a browser at the API host directly. See [Base URLs](/api-reference/oauth#base-urls).
+- Authorization request (send the **browser** here): `https://yeboid.com/oauth/authorize` — the hosted HTML login, and exactly what the OIDC discovery document advertises as `authorization_endpoint`. There is also a `/oauth/authorize` on the API host, but that one is the JSON endpoint the login UI itself calls — never send a browser there. See [Base URLs](/api-reference/oauth#base-urls).
 - Token endpoint: `https://api.yeboid.com/oauth/token`
 - User info endpoint: `https://api.yeboid.com/oauth/userinfo`
 
@@ -88,14 +92,22 @@ Users can optionally verify their identity through YeboVerify:
 4. Verification processed (usually < 2 minutes)
 5. User returns to your app with verified status
 
-Verified users have:
-- `kyc_status: "verified"`
-- `kyc_country` — Country code from their ID
-- `kyc_verified_at` — Timestamp of verification
+A verified user's [`/oauth/userinfo`](/api-reference/oauth) response carries:
+
+- `kyc_status: "VERIFIED"` — the enum is **uppercase** (`NONE`, `PENDING`,
+  `VERIFIED`, `REJECTED`)
+- `country` — ISO 3166-1 alpha-2 code resolved from their ID
+- `currency` and `currency_symbol` — derived from `country`
+
+Those four claims need the `kyc` scope. The full extracted document data
+(`kyc_data`) requires `kyc:full`. There are no `kyc_country` or
+`kyc_verified_at` claims.
 
 ## Supported Countries
 
-YeboID currently supports phone numbers and KYC for:
+Phone-number login accepts any E.164 number (`+` followed by 10–15 digits), so
+sign-in is not restricted by country. The list below is **KYC document**
+coverage — the countries whose IDs YeboVerify can verify:
 
 | Country | Code | ID Types |
 |---------|------|----------|
