@@ -111,7 +111,6 @@ management surface — listing, updating, rotating the secret, and application c
 ## Need help?
 
 - 📧 [developers@yeboid.com](mailto:developers@yeboid.com)
-- 📱 [WhatsApp +268 78 422 613](https://wa.me/26878422613)
 
 ## Developer console preview
 

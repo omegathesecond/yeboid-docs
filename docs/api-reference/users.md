@@ -20,7 +20,7 @@ Direct hosted sessions receive this projection. OAuth app responses include only
   "success": true,
   "user": {
     "id": "clx...",
-    "phone": "+26878422613",
+    "phone": "+26876000000",
     "handle": "example_user",
     "name": "Example Developer",
     "email": "developer@example.invalid",
@@ -111,7 +111,7 @@ email verification flow afterwards.
 Public profile lookup. **No authentication.**
 
 ```bash
-curl https://api.yeboid.com/users/@laslie
+curl https://api.yeboid.com/users/@example_developer
 ```
 
 ```json

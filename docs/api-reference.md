@@ -154,7 +154,7 @@ code screen immediately.
 **Request:**
 
 ```json
-{ "phone": "+26878422613" }
+{ "phone": "+26876000000" }
 ```
 
 | Field | Type | Required | Description |
@@ -218,7 +218,7 @@ the `otp` branch. Use this to resend.
 
 ```json
 {
-  "phone": "+26878422613",
+  "phone": "+26876000000",
   "clientId": "yebo_1a2b3c...",
   "channel": "sms"
 }
@@ -258,7 +258,7 @@ new — this is the signup path; there is no separate signup endpoint.
 **Request:**
 
 ```json
-{ "phone": "+26878422613", "otp": "123456" }
+{ "phone": "+26876000000", "otp": "123456" }
 ```
 
 | Field | Type | Required | Description |
@@ -273,9 +273,9 @@ new — this is the signup path; there is no separate signup endpoint.
   "success": true,
   "user": {
     "id": "clx...",
-    "phone": "+26878422613",
-    "handle": "laslie",
-    "name": "Laslie Georges Jr.",
+    "phone": "+26876000000",
+    "handle": "example_developer",
+    "name": "Example Developer",
     "avatar": "https://...",
     "kycStatus": "VERIFIED"
   },
@@ -305,7 +305,7 @@ Returning-user login with phone + PIN.
 **Request:**
 
 ```json
-{ "phone": "+26878422613", "pin": "123456" }
+{ "phone": "+26876000000", "pin": "123456" }
 ```
 
 PINs are **exactly 6 digits**.
@@ -414,7 +414,7 @@ Forgotten-PIN recovery. Call `/auth/otp/send` first, then post the code
 with the replacement PIN. No access token needed.
 
 ```json
-{ "phone": "+26878422613", "otp": "123456", "newPin": "654321" }
+{ "phone": "+26876000000", "otp": "123456", "newPin": "654321" }
 ```
 
 **Errors:** `401` invalid/expired OTP, `429 OTP_LOCKED`.
@@ -431,7 +431,7 @@ human review.
 
 ```json
 {
-  "phone": "+26878422613",
+  "phone": "+26876000000",
   "newPhone": "+26876543210",
   "note": "Lost my SIM"
 }

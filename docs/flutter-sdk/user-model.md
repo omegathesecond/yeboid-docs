@@ -97,7 +97,7 @@ Widget buildUserInfo(YeboIDUser user) {
 ```dart
 final user = YeboIDUser.fromJson({
   'id': 'usr_abc123',
-  'phone': '+26878422613',
+  'phone': '+26876000000',
   'name': 'John Doe',
   'email': 'john@example.com',
   'avatar_url': 'https://api.yeboid.com/avatars/usr_abc123.jpg',
@@ -115,7 +115,7 @@ final user = YeboIDUser.fromJson({
 final json = user.toJson();
 // {
 //   'id': 'usr_abc123',
-//   'phone': '+26878422613',
+//   'phone': '+26876000000',
 //   'name': 'John Doe',
 //   ...
 // }
@@ -145,7 +145,7 @@ The `displayName` property returns:
 // user.displayName → "John Doe"
 
 // Without name:
-// user.phone = "+26878422613"
+// user.phone = "+26876000000"
 // user.displayName → "+268 7842 2613"
 ```
 
