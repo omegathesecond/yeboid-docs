@@ -1,6 +1,6 @@
 # Security and release verification
 
-Reviewed on **23 October 2026**. Release candidates are `@omevision/yeboid-node@2.0.0` and `@omevision/yeboid-web@0.5.0`. **npm publication is pending account 2FA.** A successful local build or tarball installation does not mean a package is available from the public registry.
+Reviewed and published on **23 October 2026**. Public npm releases are [`@omevision/yeboid-node@2.0.0`](https://www.npmjs.com/package/@omevision/yeboid-node/v/2.0.0) and [`@omevision/yeboid-web@0.5.0`](https://www.npmjs.com/package/@omevision/yeboid-web/v/0.5.0). Both were installed anonymously with empty user/global npm configuration and a fresh cache. Registry integrity matches the tested tarballs, and the installed packages passed ESM, CommonJS, TypeScript, React rendering, API-issued access-token validation, ID-token rejection and webhook HMAC/tamper checks.
 
 ## Test and dependency results
 

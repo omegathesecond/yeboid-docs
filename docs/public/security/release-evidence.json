@@ -82,8 +82,31 @@
       "@omevision/yeboid-node": "2.0.0",
       "@omevision/yeboid-web": "0.5.0"
     },
-    "status": "pending_account_2fa",
-    "anonymousRegistryInstallVerified": false
+    "status": "published_public",
+    "anonymousRegistryInstallVerified": true,
+    "registryVerification": {
+      "verifiedAt": "2026-10-23T19:14:37.803769+00:00",
+      "emptyNpmConfiguration": true,
+      "freshCache": true,
+      "anonymousRegistryInstallVerified": true,
+      "consumerRuntimeAndTypeChecksPassed": true,
+      "packages": [
+        {
+          "package": "@omevision/yeboid-web",
+          "version": "0.5.0",
+          "integrity": "sha512-8X8VR+gMTOyn1Viop0gm41GsvvQahqkF43S3Oaa0gKGV3mUHOVNfdOTaY4Taww+y5N3C/TUh+MSIJrbe3PL3WA==",
+          "tarball": "https://registry.npmjs.org/@omevision/yeboid-web/-/yeboid-web-0.5.0.tgz",
+          "anonymousMetadataVerified": true
+        },
+        {
+          "package": "@omevision/yeboid-node",
+          "version": "2.0.0",
+          "integrity": "sha512-rOE8TPi404pu0t0D5AaxMHLP36bm9mByPhcWY/fUHVfAqlJ/lKjVWA5IbZ/+cranA2yL4ZvqGryN30b5u8M6aQ==",
+          "tarball": "https://registry.npmjs.org/@omevision/yeboid-node/-/yeboid-node-2.0.0.tgz",
+          "anonymousMetadataVerified": true
+        }
+      ]
+    }
   },
   "usernames": {
     "totalUsers": 15810,

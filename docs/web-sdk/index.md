@@ -1,10 +1,6 @@
 # @omevision/yeboid-web
 
-::: warning Public npm release pending
-The verified candidates are Web **0.5.0** and Node **2.0.0**. Public npm publication is waiting for the publisher's required 2FA setup. Installation commands below apply after publication; [release evidence](/security/release) distinguishes tested tarballs from registry availability.
-:::
-
-YeboID sign-in for browsers and React. Version 0.5.0 targets public npm distribution. PKCE, OAuth state validation, rotating refresh, single-flight retries, and visible errors are included. No client secret belongs in a browser.
+YeboID sign-in for browsers and React. Version 0.5.0 is available publicly on npm. PKCE, OAuth state validation, rotating refresh, single-flight retries, and visible errors are included. No client secret belongs in a browser.
 
 ```bash
 npm install @omevision/yeboid-web
