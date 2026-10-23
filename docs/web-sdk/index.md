@@ -1,237 +1,61 @@
-# Web SDK
+# @omevision/yeboid-web
 
-The official YeboID SDK for browser apps. It runs the OAuth 2.0 + PKCE
-authorization-code flow entirely in the browser (no client secret), stores and silently
-refreshes tokens, and gives you an authenticated `fetch`. Ships a framework-agnostic
-client plus first-class React bindings.
-
-- **Package:** [`@omevision/yeboid-web`](https://www.npmjs.com/package/@omevision/yeboid-web)
-- **Source:** [omegathesecond/yeboid-web-sdk](https://github.com/omegathesecond/yeboid-web-sdk)
-- **Targets:** Any bundler (Vite, Next.js, Webpack). React entry point at `@omevision/yeboid-web/react`.
-
-## Installation
+YeboID sign-in for browsers and React. Version 0.5.0 targets public npm distribution. PKCE, OAuth state validation, rotating refresh, single-flight retries, and visible errors are included. No client secret belongs in a browser.
 
 ```bash
 npm install @omevision/yeboid-web
 ```
 
-::: warning Private package
-`@omevision/yeboid-web` is published under the private `@omevision` npm scope. You need
-an npm token with read access to that scope before `npm install` will succeed —
-including in your CI / Pages build container. Add it to `~/.npmrc`:
-
-```
-//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxx
-```
-:::
-
-::: tip Public client — no secret
-Browser apps are **public clients**: they must never embed a `clientSecret`. The Web SDK
-uses PKCE, so you only need your `clientId` and a registered `redirectUri`. Create an app
-in the [developer portal](/register-app) to get them.
-:::
-
-## Vanilla JS / TypeScript
-
-```typescript
-import { YeboIDClient } from '@omevision/yeboid-web';
-
-const yeboid = new YeboIDClient({
-  clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
-  redirectUri: `${window.location.origin}/auth/callback`,
-  scope: 'openid profile phone',
-  // authUrl / tokenUrl / userinfoUrl default to production — no need to set them.
-});
-
-// On your callback route: finish the login
-if (YeboIDClient.isCallbackUrl(window.location)) {
-  const { user } = await yeboid.handleCallback();
-  console.log('Signed in as', user.name);
-  window.history.replaceState({}, '', '/'); // clean ?code & ?state from the URL
-}
-
-// Trigger a login (redirects to YeboID)
-document.querySelector('#login')!.addEventListener('click', () => yeboid.signIn());
-
-// Make an authenticated request — Bearer token is attached and refreshed on 401
-const res = await yeboid.fetch('https://api.myapp.com/me');
-
-// Sign out (revokes the token and clears the SSO cookie)
-await yeboid.signOut();
-```
-
-### Client options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `clientId` | `string` | — | **Required.** Your app's client ID. |
-| `redirectUri` | `string` | — | **Required.** Must match a registered redirect URI. |
-| `scope` | `string \| string[]` | `'openid profile phone email kyc'` | Requested scopes. |
-| `autoRefresh` | `boolean` | `true` | Pre-emptively refresh the access token before it expires. |
-| `refreshLeadSeconds` | `number` | `60` | How many seconds before expiry to refresh. |
-| `storage` | `Storage` | `localStorage`-backed | Where to persist the token set. |
-| `authUrl` | `string` | `https://yeboid.com/oauth/authorize` | Login/consent screen. Default is correct. |
-| `tokenUrl` | `string` | `https://api.yeboid.com/oauth/token` | Token exchange. Default is correct. |
-| `userinfoUrl` | `string` | `https://api.yeboid.com/oauth/userinfo` | Default is correct. |
-| `logoutUrl` | `string` | `https://api.yeboid.com/auth/logout` | Default is correct. |
-| `introspectUrl` | `string` | `https://api.yeboid.com/oauth/introspect` | Default is correct. |
-
-::: tip The URL defaults already point at production
-Every `*Url` option defaults to the live production endpoint, so a normal integration
-only sets `clientId`, `redirectUri` and `scope`. The defaults match what the
-[OIDC discovery document](/api-reference/oauth#discovery) advertises.
-
-Note that `authUrl` is on `yeboid.com` while the rest are on `api.yeboid.com`. That is
-deliberate, not a typo: `/oauth/authorize` is the browser-facing screen where the user
-signs in and grants consent, so it is served by the login app; the token, userinfo,
-introspection and revocation endpoints are machine-to-machine and live on the API host.
-
-Override them only to point the SDK at the development environment:
-
-```typescript
-const yeboid = new YeboIDClient({
-  clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
-  redirectUri: `${window.location.origin}/auth/callback`,
-  authUrl: 'https://dev.yeboid.com/oauth/authorize',
-  tokenUrl: 'https://dev-api.yeboid.com/oauth/token',
-  userinfoUrl: 'https://dev-api.yeboid.com/oauth/userinfo',
-  logoutUrl: 'https://dev-api.yeboid.com/auth/logout',
-  introspectUrl: 'https://dev-api.yeboid.com/oauth/introspect',
-});
-```
-:::
-
-## React
-
-Wrap your app in `YeboIDProvider`, then use the `useYeboID()` hook anywhere.
+## React: provider and sign-in button
 
 ```tsx
-// main.tsx
-import { YeboIDProvider } from '@omevision/yeboid-web/react';
+import { YeboIDProvider, YeboIDSignInButton, useYeboID } from '@omevision/yeboid-web/react';
+
+function Account() {
+  const { user, isLoading, error, retry, signOut } = useYeboID();
+  if (isLoading) return <p>Loading your account…</p>;
+  if (error) return <div role="alert">{error.message} <button onClick={() => void retry()}>Retry</button></div>;
+  if (!user) return <YeboIDSignInButton />;
+  return <p>Signed in as @{user.preferred_username} <button onClick={() => void signOut().catch(window.alert)}>Sign out</button></p>;
+}
 
 export function App() {
-  return (
-    <YeboIDProvider
-      config={{
-        clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
-        redirectUri: `${window.location.origin}/auth/callback`,
-        scope: 'openid profile phone',
-      }}
-    >
-      <ProfileButton />
-    </YeboIDProvider>
-  );
+  return <YeboIDProvider config={{
+    clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
+    redirectUri: `${window.location.origin}/auth/callback`,
+    scope: ['openid', 'profile', 'offline_access'],
+  }}><Account /></YeboIDProvider>;
 }
 ```
 
-```tsx
-import { useYeboID } from '@omevision/yeboid-web/react';
+Register your exact callback in [Developer Apps](https://yeboid.com/developer/apps). Serve the provider on that callback and configure your SPA fallback. No API origin/endpoint overrides are needed for production. The React entry is optional; the root SDK does not depend on a React runtime.
 
-function ProfileButton() {
-  const { user, isAuthenticated, isLoading, signIn, signOut } = useYeboID();
+## Framework-independent client
 
-  if (isLoading) return <span>Loading…</span>;
-  if (!isAuthenticated) return <button onClick={() => signIn()}>Sign in with Yebo</button>;
-
-  return (
-    <div>
-      <span>Hi, {user?.name}</span>
-      <button onClick={signOut}>Sign out</button>
-    </div>
-  );
+```ts
+import { YeboIDClient } from '@omevision/yeboid-web';
+const identity = new YeboIDClient({ clientId: 'YOUR_CLIENT_ID',
+  redirectUri: `${window.location.origin}/auth/callback`,
+  scope: ['openid', 'profile', 'offline_access'] });
+if (YeboIDClient.isCallbackUrl(window.location)) {
+  const { user } = await identity.handleCallback();
+  window.history.replaceState({}, '', '/');
+  console.log(user.sub, user.preferred_username);
 }
+// On an explicit user action:
+// await identity.signIn();
+// const response = await identity.fetch('https://YOUR_TRUSTED_API.example/me');
+// await identity.signOut();
 ```
 
-The provider automatically detects the callback URL and completes the token exchange, so
-you don't need to call `handleCallback()` yourself in React.
+Attach access tokens only to your own trusted API. Enforce authorization on the server with `@omevision/yeboid-node`; browser state and the returned ID token are not server authorization checks.
 
-### `useYeboID()` returns
+## Permissions, errors, and business context
 
-| Field | Description |
-|-------|-------------|
-| `user` | The signed-in `YeboIDUserInfo`, or `null`. |
-| `isAuthenticated` | `true` when a user is signed in. |
-| `isLoading` | `true` while restoring/finishing a session. |
-| `signIn(role?)` | Start the login redirect. |
-| `signOut()` | Revoke the token and clear the session. |
-| `fetch(input, init?)` | Authenticated `fetch` with auto-refresh on 401. |
-| `on(handler)` | Subscribe to `login` / `logout` / `refresh` events. Returns an unsubscribe fn. |
-| `client` | The underlying `YeboIDClient` instance, for advanced use. |
-| `registerIntentHandler(kind, handler)` | Register a handler that runs a [pending intent](#resume-an-action-after-login) of the given `kind` once the user is authenticated. Returns an unsubscribe fn. |
+Start with `openid profile offline_access`. Phone, email, identity documents, and business context require their own consented scopes. `preferred_username` is the shared YeboID/Hiyebo username. Keep `sub` as the stable identity reference.
 
-### Authenticated requests in React
+`useYeboID()` exposes `error`, `retry()`, and `resetError()`. `YeboIDSignInButton` renders sign-in failures in an alert and accepts an `onError` callback. Logout/refresh/network errors propagate; do not fabricate a successful login. The default storage is localStorage, so use a strong CSP and prevent XSS in your application. Never put client secrets in that storage.
 
-```tsx
-const { fetch } = useYeboID();
-const res = await fetch('https://api.myapp.com/orders');
-const orders = await res.json();
-```
+Scope types include `business`, `business:kyc`, and `business:manage`. Business context never replaces the human subject. `IntrospectionResult` scope helpers require an active token. Public exports include the business claim types, typed errors, and storage helpers.
 
-## Resume an action after login
-
-Use pending intents to capture what the user was doing before they signed in, and replay
-it once they're authenticated (e.g. "add to cart" → login → cart updated). These helpers
-ship from the **`/react` entry point** (`@omevision/yeboid-web/react`), not the root
-package.
-
-```typescript
-import { setPendingIntent, consumePendingIntent } from '@omevision/yeboid-web/react';
-
-// Before redirecting to login:
-setPendingIntent({ kind: 'add-to-cart', productId: 'abc' });
-await yeboid.signIn();
-
-// After handleCallback() resolves:
-const intent = consumePendingIntent<{ kind: string; productId: string }>();
-if (intent?.kind === 'add-to-cart') addToCart(intent.productId);
-```
-
-In React, the idiomatic equivalent is `registerIntentHandler` from `useYeboID()`, which
-fires automatically once the user is authenticated:
-
-```tsx
-const { registerIntentHandler } = useYeboID();
-
-useEffect(
-  () =>
-    registerIntentHandler<{ kind: 'add-to-cart'; productId: string }>(
-      'add-to-cart',
-      (intent) => addToCart(intent.productId),
-    ),
-  [],
-);
-```
-
-## The user object
-
-`YeboIDUserInfo` uses standard OIDC claim names. Fields are only present when the user
-granted the matching scope and the data exists:
-
-```typescript
-interface YeboIDUserInfo {
-  sub: string;                      // YeboID user ID — store this as your FK
-  name?: string;                    // requires `profile`
-  preferred_username?: string;      // the user's handle — requires `profile`
-  picture?: string;                 // requires `profile`
-  phone_number?: string;            // requires `phone`
-  phone_number_verified?: boolean;
-  email?: string;                   // requires `email`
-  email_verified?: boolean;
-  kyc_status?: string;              // requires `kyc`
-  country?: string;                 // ISO 3166-1 alpha-2 — requires `kyc`
-  currency?: string;                // ISO 4217 — requires `kyc`
-  currency_symbol?: string;         // requires `kyc`
-}
-```
-
-::: tip
-There is no `handle` or `phone` field — use `preferred_username` and `phone_number`. The
-granted scopes are exposed on the token set (`TokenSet.scope`), not on the user object.
-:::
-
-## Next steps
-
-- [OAuth 2.0 + PKCE flow in depth](/authentication/)
-- [PKCE explained](/authentication/pkce)
-- [OAuth / OIDC API reference](/api-reference/oauth)
-- [Register your app](/register-app)
+See [quickstart](https://docs.yeboid.com/getting-started), [permissions](https://docs.yeboid.com/permissions), [troubleshooting](https://docs.yeboid.com/troubleshooting), and [source](https://github.com/omegathesecond/yeboid-web-sdk). Publishing availability is verified separately from a successful build. MIT license.

@@ -42,7 +42,9 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/' },
           { text: 'Getting Started', link: '/getting-started' },
-          { text: 'Register Your App', link: '/register-app' }
+          { text: 'Register Your App', link: '/register-app' },
+          { text: 'Permissions', link: '/permissions' },
+          { text: 'Troubleshooting', link: '/troubleshooting' }
         ]
       },
       {
@@ -87,7 +89,9 @@ export default defineConfig({
         text: 'Integration',
         items: [
           { text: 'KYC with YeboVerify', link: '/kyc-integration' },
-          { text: 'Webhooks', link: '/webhooks' }
+          { text: 'Webhooks', link: '/webhooks' },
+          { text: 'Business Accounts', link: '/business-accounts' },
+          { text: 'Release Verification', link: '/security/release' }
         ]
       },
       {
@@ -104,7 +108,7 @@ export default defineConfig({
 
     footer: {
       message: 'Universal Authentication for Africa',
-      copyright: 'Copyright © 2024 YeboID'
+      copyright: 'Copyright © 2026 Omevision'
     },
 
     search: {

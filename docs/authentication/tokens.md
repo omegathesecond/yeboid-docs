@@ -1,298 +1,55 @@
-# Token Management
+# Token management
 
-YeboID uses JWT (JSON Web Tokens) for authentication. Understanding how to manage tokens is essential for building secure applications.
+| Token | Purpose | Default lifetime |
+|---|---|---|
+| Access JWT | Authorize API requests | 15 minutes |
+| Opaque refresh token | Rotate the token set | 60 days |
+| ID JWT | Describe the authenticated person to the client | 1 hour |
 
-## Token Types
+Use the token response's `expires_in` as authoritative. Operators can configure access and refresh lifetimes.
 
-| Token | Purpose | Lifetime | Storage |
-|-------|---------|----------|---------|
-| Access Token | API authentication | 15 minutes | Memory |
-| Refresh Token | Get new access tokens | 60 days | Secure storage |
-| ID Token | User identity claims | 1 hour | Optional |
+## Access tokens and claims
 
-## Access Token
+Send `Authorization: Bearer ACCESS_TOKEN`. YeboID signs access tokens using RS256. OAuth access JWTs carry `iss`, `sub`, `aud` (your public client ID), `exp`, `iat`, `type: "access"`, `appId`, and `scopes: string[]`. Business tokens also carry `business_id` and `business_role`; `sub` remains the person.
 
-The access token is a signed JWT used to authenticate API requests:
+The OAuth token response and introspection response use a space-separated `scope` string. That wire field is different from the access JWT's `scopes` array. Use the [Node SDK](/node-sdk/) to avoid implementing the distinction yourself.
 
-```
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
-```
+An ID token is for the client that initiated login. Never accept it as an API bearer token. Validate its signature, issuer, audience, expiry, and the `nonce` from your authorization request before trusting identity claims. The browser SDK uses the access token and userinfo for the session profile.
 
-### Structure
-
-```json
-{
-  "header": {
-    "alg": "RS256",
-    "typ": "JWT",
-    "kid": "key-id-123"
-  },
-  "payload": {
-    "iss": "https://api.yeboid.com",
-    "sub": "usr_abc123",
-    "aud": "your-client-id",
-    "exp": 1709254800,
-    "iat": 1709251200,
-    "scope": "openid profile phone"
-  }
-}
-```
-
-### Claims
-
-| Claim | Description |
-|-------|-------------|
-| `iss` | Issuer (`https://api.yeboid.com` in production) |
-| `sub` | Subject (user ID) |
-| `aud` | Audience (your client ID) |
-| `exp` | Expiration timestamp |
-| `iat` | Issued at timestamp |
-| `scope` | Granted scopes |
-
-## Refresh Token
-
-Refresh tokens allow you to obtain new access tokens without requiring user interaction:
+## Rotation and concurrency
 
 ```bash
-POST https://api.yeboid.com/oauth/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=refresh_token
-&refresh_token=YOUR_REFRESH_TOKEN
-&client_id=YOUR_CLIENT_ID
+curl https://api.yeboid.com/oauth/token \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode grant_type=refresh_token \
+  --data-urlencode client_id=YOUR_CLIENT_ID \
+  --data-urlencode refresh_token=YOUR_REFRESH_TOKEN
 ```
 
-Response:
+Persist the returned refresh token before sending another refresh. Serialize refresh calls: tokens are single use, and replaying an already revoked refresh token triggers revocation of that user's outstanding refresh tokens. The browser SDK shares one in-flight refresh within a client instance and protects against stale session results. Coordinate separately across tabs or server workers.
 
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
-  "token_type": "Bearer",
-  "expires_in": 900,
-  "refresh_token": "new-refresh-token...",
-  "scope": "openid profile phone"
-}
+An optional `scope` narrows permissions; it cannot add permissions beyond the active consent grant. Revoked consent, a disabled account, or lost business access prevents renewal. Authorization codes are also single use and bound to the exact client, redirect URI, and PKCE verifier.
+
+## Browser storage
+
+The browser SDK defaults to localStorage so a login redirect and subsequent visits can restore the session. JavaScript executing on your origin can read it: prevent XSS, use a restrictive Content Security Policy, and avoid untrusted scripts. Storage write failures propagate instead of pretending tokens were saved. You may provide the SDK's `Storage` interface; memory-only storage does not survive a full-page PKCE redirect by itself.
+
+For applications requiring tokens inaccessible to browser JavaScript, implement a backend-for-frontend using the Node SDK. Keep tokens on your server and give the browser a Secure, HttpOnly, SameSite session cookie, with CSRF protection appropriate to your routes. A browser `Storage` adapter cannot itself read an HttpOnly cookie.
+
+Native applications should use their platform's secure credential storage. Never embed a client secret in a browser or mobile bundle. Store server secrets in a secret manager and exclude tokens from logs, analytics, error reports, and URLs.
+
+## Backend verification and live permissions
+
+```ts
+import { YeboID } from '@omevision/yeboid-node';
+const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
+app.get('/profile', identity.authenticate(), identity.requireScopes('profile'), handler);
 ```
 
-::: warning Refresh Token Rotation
-YeboID uses single-use refresh token rotation. Each time you use a refresh token, a new
-one is issued and the old one is invalidated — always store the new refresh token.
-Presenting an already-used refresh token is treated as token theft: the **entire** token
-family for that grant is revoked.
-:::
+The middleware verifies RS256, the configured issuer and audience, expiry, required claims, access-token purpose, and scope shape. It caches public JWKS keys locally. It cannot see a new ban or revoked grant from an offline JWT check alone. For sensitive actions, call `identity.introspect(token)` and require `active`, then enforce your own ownership/role checks. The identity API rechecks current account and consent state on protected requests. See the [permission matrix](/permissions).
 
-::: tip Down-scoping
-You may pass a `scope` parameter on a refresh to request a **narrower** set of scopes
-than originally granted. You can never widen scope on refresh — that fails with
-`invalid_scope`.
-:::
+## Logout and revocation
 
-## ID Token
+Use the browser SDK's `signOut()` or submit `token` (the refresh token) and `client_id` to `/oauth/revoke`. If you supply a client secret, it is validated. An unknown token or a token belonging to another client returns 200 without a mutation. A 200 response does not mean an arbitrary access JWT was blacklisted: offline verifiers can continue accepting an already-issued JWT until expiry. Disconnecting the app revokes its consent grant, and introspection/userinfo observe that immediately.
 
-The ID token contains identity claims about the authenticated user:
-
-```json
-{
-  "iss": "https://api.yeboid.com",
-  "sub": "usr_abc123",
-  "aud": "your-client-id",
-  "exp": 1709254800,
-  "iat": 1709251200,
-  "auth_time": 1709251180,
-  "nonce": "random-nonce",
-  "name": "John Doe",
-  "preferred_username": "johndoe",
-  "picture": "https://api.yeboid.com/avatars/usr_abc123.jpg",
-  "phone_number": "+26878422613",
-  "phone_number_verified": true,
-  "kyc_status": "VERIFIED"
-}
-```
-
-## Token Storage
-
-### Flutter (Recommended)
-
-```dart
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-class TokenStorage {
-  final _storage = FlutterSecureStorage();
-  
-  Future<void> saveTokens({
-    required String accessToken,
-    required String refreshToken,
-    String? idToken,
-  }) async {
-    await _storage.write(key: 'access_token', value: accessToken);
-    await _storage.write(key: 'refresh_token', value: refreshToken);
-    if (idToken != null) {
-      await _storage.write(key: 'id_token', value: idToken);
-    }
-  }
-  
-  Future<String?> getAccessToken() => _storage.read(key: 'access_token');
-  Future<String?> getRefreshToken() => _storage.read(key: 'refresh_token');
-  
-  Future<void> clearTokens() => _storage.deleteAll();
-}
-```
-
-### Web Applications
-
-For web applications, consider:
-
-- **Access tokens:** Store in memory only (JavaScript variable)
-- **Refresh tokens:** Use `httpOnly` cookies set by your backend
-
-```javascript
-// Don't do this:
-localStorage.setItem('access_token', token); // ❌ Vulnerable to XSS
-
-// Do this instead:
-let accessToken = null; // ✅ Memory only
-
-function setAccessToken(token) {
-  accessToken = token;
-}
-
-function getAccessToken() {
-  return accessToken;
-}
-```
-
-## Token Refresh Strategy
-
-Implement proactive token refresh to avoid failed requests:
-
-```dart
-class TokenManager {
-  String? _accessToken;
-  DateTime? _expiresAt;
-  
-  bool get isExpired => 
-    _expiresAt == null || 
-    DateTime.now().isAfter(_expiresAt!.subtract(Duration(minutes: 5)));
-  
-  Future<String> getValidAccessToken() async {
-    if (isExpired) {
-      await _refreshTokens();
-    }
-    return _accessToken!;
-  }
-  
-  Future<void> _refreshTokens() async {
-    final refreshToken = await _storage.getRefreshToken();
-    if (refreshToken == null) throw AuthException('No refresh token');
-    
-    final response = await http.post(
-      Uri.parse('https://api.yeboid.com/oauth/token'),
-      body: {
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-        'client_id': clientId,
-      },
-    );
-    
-    final data = jsonDecode(response.body);
-    _accessToken = data['access_token'];
-    _expiresAt = DateTime.now().add(
-      Duration(seconds: data['expires_in']),
-    );
-    
-    // Store new refresh token (rotation)
-    await _storage.saveRefreshToken(data['refresh_token']);
-  }
-}
-```
-
-## Token Verification
-
-### Verify on Your Backend
-
-Always verify tokens on your backend before trusting them:
-
-```javascript
-import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
-
-const client = jwksClient({
-  jwksUri: 'https://api.yeboid.com/.well-known/jwks.json',
-  cache: true,
-  rateLimit: true,
-});
-
-async function verifyToken(token) {
-  const decoded = jwt.decode(token, { complete: true });
-  const key = await client.getSigningKey(decoded.header.kid);
-  
-  return jwt.verify(token, key.getPublicKey(), {
-    issuer: 'https://api.yeboid.com',
-    audience: 'your-client-id',
-  });
-}
-```
-
-::: tip Use the SDK instead
-The [Node.js SDK](/node-sdk/) does this verification for you — JWKS fetch, caching, and
-`issuer`/`audience` checks — via `yeboid.authenticate()`. Hand-rolling JWKS verification
-is only necessary if you can't use the SDK.
-:::
-
-### JWKS Endpoint
-
-Fetch public keys to verify token signatures:
-
-```
-GET https://api.yeboid.com/.well-known/jwks.json
-```
-
-```json
-{
-  "keys": [
-    {
-      "kty": "RSA",
-      "kid": "key-id-123",
-      "use": "sig",
-      "alg": "RS256",
-      "n": "0vx7agoebGc...",
-      "e": "AQAB"
-    }
-  ]
-}
-```
-
-## Logout
-
-To log out a user, revoke their tokens and clear local storage:
-
-```dart
-Future<void> logout() async {
-  final refreshToken = await _storage.getRefreshToken();
-  
-  // Revoke on server
-  if (refreshToken != null) {
-    await http.post(
-      Uri.parse('https://api.yeboid.com/oauth/revoke'),
-      body: {
-        'token': refreshToken,
-        'client_id': clientId,
-      },
-    );
-  }
-  
-  // Clear local storage
-  await _storage.clearTokens();
-  _accessToken = null;
-  _expiresAt = null;
-}
-```
-
-## Security Best Practices
-
-1. **Never store access tokens in localStorage** - Use memory or secure storage
-2. **Implement token refresh proactively** - Refresh before expiration
-3. **Handle refresh token rotation** - Always save new refresh tokens
-4. **Verify tokens on your backend** - Don't trust client-side verification alone
-5. **Revoke tokens on logout** - Prevent token reuse
-6. **Use short access token lifetimes** - Limits impact of token theft
+Clear local application sessions after successful sign-out, and display failures so the user knows when server logout did not finish. Disconnecting an app and signing out of YeboID's hosted SSO session are distinct actions.

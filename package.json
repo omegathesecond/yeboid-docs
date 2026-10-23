@@ -8,10 +8,22 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
-  "keywords": ["yeboid", "identity", "authentication", "oauth2", "flutter", "api", "documentation"],
+  "keywords": [
+    "yeboid",
+    "identity",
+    "authentication",
+    "oauth2",
+    "flutter",
+    "api",
+    "documentation"
+  ],
   "author": "OmeVision",
   "license": "MIT",
   "devDependencies": {
     "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "vite": "^6.4.4",
+    "esbuild": "^0.25.12"
   }
 }

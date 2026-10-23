@@ -583,3 +583,7 @@ control — the OTP verify lockout — is database-backed and therefore exact.
 - [Node.js SDK](/node-sdk/) — Express middleware + token verification for backends
 - [Web / React SDK](/web-sdk/) — browser PKCE flow with React bindings
 - [Flutter SDK](/flutter-sdk/) — official Flutter package
+
+## Delegated permissions
+
+Use [the permissions matrix](/permissions) before calling personal or business endpoints. App tokens cannot administer global sessions, credentials, OAuth applications, or webhook subscriptions. Profile writes require `profile:write`, and verification status does not disclose full identity data without `kyc:full`. A KYC-owned name is read-only.

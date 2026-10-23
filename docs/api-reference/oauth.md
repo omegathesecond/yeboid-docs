@@ -56,7 +56,7 @@ automatically.
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["RS256"],
-  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
   "code_challenge_methods_supported": ["S256"],
   "scopes_supported": ["openid", "profile", "profile:write", "phone", "email", "kyc", "kyc:full"],
   "claims_supported": ["sub", "iss", "aud", "iat", "exp", "auth_time", "nonce", "name", "preferred_username", "picture", "phone_number", "phone_number_verified", "email", "email_verified", "kyc_status", "kyc_data", "country", "currency", "currency_symbol"]
@@ -134,7 +134,7 @@ mode.
 | `redirect_uri` | Yes | Must match the value used at `/oauth/authorize`. |
 | `client_id` | Yes | Your app's client ID. |
 | `code_verifier` | Yes (PKCE) | The original PKCE verifier. |
-| `client_secret` | Confidential clients | Required for server-side (confidential) clients. |
+| `client_secret` | Confidential clients | Validated when supplied; keep server credentials on the server. |
 
 **Refresh token grant**
 
@@ -144,7 +144,7 @@ mode.
 | `refresh_token` | Yes | A valid, un-rotated refresh token. |
 | `client_id` | Yes | Your app's client ID. |
 | `scope` | No | Request a **narrower** scope set than granted. Widening fails with `invalid_scope`. |
-| `client_secret` | Confidential clients | Required for confidential clients. |
+| `client_secret` | Confidential clients | Validated when supplied; never embed it in browser/mobile code. |
 
 **Response**
 
@@ -161,7 +161,7 @@ mode.
 
 Access tokens are JWTs that live **15 minutes** (`expires_in` = `900`). Refresh tokens are
 opaque, live **60 days**, and are **rotated on every use** — always persist the new one.
-Reusing a rotated refresh token revokes the whole token family. See
+Reusing a rotated refresh token revokes the user’s outstanding refresh tokens. See
 [Tokens](/authentication/tokens).
 
 ## UserInfo
@@ -209,7 +209,7 @@ even with a not-yet-expired access token.
 
 ### <span class="api-method post">POST</span> /oauth/revoke
 
-Revoke an access or refresh token (RFC 7009). Always returns `200` with an empty body,
+Revoke a refresh token (RFC 7009 response semantics). Access JWTs are not individually blacklisted. Always returns `200` with an empty body,
 even for unknown tokens.
 
 | Field | Required | Description |
@@ -217,7 +217,7 @@ even for unknown tokens.
 | `token` | Yes | The token to revoke. |
 | `client_id` | Yes | Your app's client ID. |
 | `token_type_hint` | No | `access_token` or `refresh_token`. |
-| `client_secret` | Confidential clients | Required for confidential clients. |
+| `client_secret` | Confidential clients | Validated when supplied; never embed it in browser/mobile code. |
 
 ## Introspection
 
@@ -238,7 +238,7 @@ Client authentication mirrors [`/oauth/revoke`](#revoke): confidential clients s
 | `token` | Yes | The access or refresh token to inspect. |
 | `client_id` | Yes | Your app's client ID. |
 | `token_type_hint` | No | `access_token` or `refresh_token` — an ordering hint only; a wrong/absent hint never changes the result. |
-| `client_secret` | Confidential clients | Required for confidential clients. |
+| `client_secret` | Confidential clients | Validated when supplied; never embed it in browser/mobile code. |
 
 **Active token response** (`200`)
 
@@ -347,7 +347,7 @@ confirm a token is still live):
 1. Fetch the signing keys from [`/.well-known/jwks.json`](#jwks) and cache them.
 2. Verify the JWT signature (`RS256`) against the key whose `kid` matches the token header.
 3. Check `iss` = `https://api.yeboid.com`, `aud` = your `client_id`, and `exp`.
-4. Enforce the `scope` claim for the route.
+4. Require `type: "access"` and enforce the `scopes` array claim for the route.
 
 The [Node.js SDK](/node-sdk/) does all of this for you via `yeboid.authenticate()`. See
 [Tokens → Verification](/authentication/tokens#token-verification) for a hand-rolled

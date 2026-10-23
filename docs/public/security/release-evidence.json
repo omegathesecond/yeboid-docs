@@ -1,0 +1,231 @@
+{
+  "reviewDate": "2026-10-23",
+  "tests": {
+    "api": 644,
+    "sdk-node": 104,
+    "sdk-web": 139,
+    "hosted-ui": 98,
+    "admin": 9,
+    "legacy-sdk": 36
+  },
+  "totalTests": 1030,
+  "consumerChecks": [
+    "ESM",
+    "CommonJS",
+    "TypeScript",
+    "React rendering",
+    "actual API-issued access token accepted",
+    "ID token rejected",
+    "independent webhook HMAC and tamper rejection"
+  ],
+  "audits": {
+    "api": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "sdk-node": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "sdk-web": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "hosted-ui": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "admin": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "docs": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "legacy-sdk": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "npm": {
+    "account": "omegathesecond",
+    "targets": {
+      "@omevision/yeboid-node": "2.0.0",
+      "@omevision/yeboid-web": "0.5.0"
+    },
+    "status": "pending_account_2fa",
+    "anonymousRegistryInstallVerified": false
+  },
+  "usernames": {
+    "totalUsers": 15810,
+    "missing": 0,
+    "registryRepairsNeeded": 0
+  },
+  "limitations": [
+    "No destructive production tests or real OTP delivery",
+    "Some abuse limits remain process-local",
+    "Offline JWT verification needs introspection for current revocation state",
+    "Browser localStorage requires XSS prevention and CSP"
+  ],
+  "live-api-dev": {
+    "discovery": {
+      "status": 200,
+      "issuer": "https://dev-api.yeboid.com",
+      "scopes": [
+        "openid",
+        "profile",
+        "profile:write",
+        "phone",
+        "email",
+        "kyc",
+        "kyc:full",
+        "business",
+        "business:kyc",
+        "business:manage",
+        "offline_access"
+      ],
+      "authMethods": [
+        "client_secret_post",
+        "none"
+      ]
+    },
+    "jwks": {
+      "status": 200,
+      "kid": "yeboid-key-2"
+    },
+    "publicTokenCORS": {
+      "status": 400,
+      "error": "invalid_request"
+    },
+    "/users/me": {
+      "status": 401
+    },
+    "/apps": {
+      "status": 401
+    },
+    "/admin/users": {
+      "status": 401
+    },
+    "accountOriginRestricted": true,
+    "ready": {
+      "status": 200
+    }
+  },
+  "live-api-prod": {
+    "discovery": {
+      "status": 200,
+      "issuer": "https://api.yeboid.com",
+      "scopes": [
+        "openid",
+        "profile",
+        "profile:write",
+        "phone",
+        "email",
+        "kyc",
+        "kyc:full",
+        "business",
+        "business:kyc",
+        "business:manage",
+        "offline_access"
+      ],
+      "authMethods": [
+        "client_secret_post",
+        "none"
+      ]
+    },
+    "jwks": {
+      "status": 200,
+      "kid": "yeboid-key-2"
+    },
+    "publicTokenCORS": {
+      "status": 400,
+      "error": "invalid_request"
+    },
+    "/users/me": {
+      "status": 401
+    },
+    "/apps": {
+      "status": 401
+    },
+    "/admin/users": {
+      "status": 401
+    },
+    "accountOriginRestricted": true,
+    "ready": {
+      "status": 200
+    }
+  },
+  "live-docs-admin-checks": {
+    "https://docs.yeboid.com/permissions": {
+      "status": 200,
+      "bytes": 33241
+    },
+    "https://docs.yeboid.com/getting-started": {
+      "status": 200,
+      "bytes": 54236
+    },
+    "https://docs.yeboid.com/security/release": {
+      "status": 200,
+      "bytes": 32228
+    },
+    "https://docs.yeboid.com/screenshots/sign-in.png": {
+      "status": 200,
+      "bytes": 90264
+    },
+    "https://docs.yeboid.com/screenshots/register-app.png": {
+      "status": 200,
+      "bytes": 144761
+    },
+    "https://docs.yeboid.com/screenshots/app-settings.png": {
+      "status": 200,
+      "bytes": 49115
+    },
+    "https://docs.yeboid.com/screenshots/consent.png": {
+      "status": 200,
+      "bytes": 50120
+    },
+    "https://admin.yeboid.com": {
+      "status": 302,
+      "cloudflareAccessProtected": true
+    }
+  },
+  "deployments": {
+    "apiProductionRevision": "yeboid-api-prod-00120-vb8",
+    "apiDevelopmentRevision": "yeboid-api-dev-00042-ggs",
+    "apiBuildId": "3954b39d-dc3f-4c1e-9860-563b2fc1b138",
+    "apiSourceCommit": "da6456a",
+    "hostedUiSourceCommit": "bc87b48",
+    "hostedUiJavaScript": "index-dgmXE0B6.js",
+    "adminSourceCommit": "d1d1503",
+    "developmentScalingRestoredToZero": true
+  }
+}
