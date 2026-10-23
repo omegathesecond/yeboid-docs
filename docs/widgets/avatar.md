@@ -49,7 +49,7 @@ If no avatar image, shows initials with a gradient background:
 ```dart
 // "John Doe" → "JD"
 // "Alice" → "A"
-// "+26878422613" → "13"
+// "+26876000000" → "00"
 ```
 
 ### KYC Badge

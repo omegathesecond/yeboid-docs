@@ -128,7 +128,7 @@ Response:
   "name": "John Doe",
   "preferred_username": "johndoe",
   "picture": "https://api.yeboid.com/avatars/usr_abc123.jpg",
-  "phone_number": "+26878422613",
+  "phone_number": "+26876000000",
   "phone_number_verified": true,
   "kyc_status": "VERIFIED",
   "country": "SZ",

@@ -74,6 +74,8 @@ X-YeboID-Delivery-ID: dlv_abc123
 
 The event type is the **`event`** field (and the `X-YeboID-Event` header).
 
+Webhook URLs must use **HTTPS** and resolve to public addresses. Plaintext HTTP, internal addresses and redirects are refused both when configuring a subscription and when sending it.
+
 ## Verifying signatures
 
 YeboID signs **`${timestamp}.${rawBody}`** with HMAC-SHA256 using your subscription's
@@ -81,54 +83,25 @@ signing secret, hex-encodes it, and prefixes it with `v1=`. Verify against the *
 request body bytes** — parsing and re-serializing the JSON can change the bytes and break
 the check.
 
-```javascript
-const crypto = require('crypto');
+```ts
+import { YeboID } from 'yeboid-node';
+const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
 
-function verifySignature(rawBody, signatureHeader, timestamp, secret) {
-  const expected =
-    'v1=' +
-    crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}.${rawBody}`)
-      .digest('hex');
-
-  // Constant-time comparison
-  return (
-    signatureHeader.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
-  );
-}
-
-// Express — note express.raw() so req.body is the raw Buffer
-app.post(
-  '/webhooks/yeboid',
-  express.raw({ type: 'application/json' }),
-  (req, res) => {
-    const signature = req.header('X-YeboID-Signature') ?? '';
-    const timestamp = req.header('X-YeboID-Timestamp') ?? '';
-    const rawBody = req.body.toString('utf8');
-
-    // Reject deliveries more than 5 minutes old (replay protection)
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - Number(timestamp)) > 300) {
-      return res.status(401).send('Stale timestamp');
-    }
-
-    if (!verifySignature(rawBody, signature, timestamp, WEBHOOK_SECRET)) {
-      return res.status(401).send('Invalid signature');
-    }
-
-    const event = JSON.parse(rawBody);
-    res.status(200).send('OK'); // respond fast, then process async
-    handleEvent(event).catch(console.error);
-  },
-);
+// Register this before express.json(). `inbox` is your durable queue/storage.
+app.post('/webhooks/yeboid', express.raw({ type: 'application/json' }), async (req, res, next) => {
+  try {
+    if (!identity.verifyWebhook(req.body,
+      req.get('X-YeboID-Signature') ?? '', process.env.YEBOID_WEBHOOK_SECRET!,
+      req.get('X-YeboID-Timestamp') ?? '')) return res.sendStatus(401);
+    const event = JSON.parse(req.body.toString('utf8'));
+    await inbox.storeOnce(event.id, event);
+    res.sendStatus(200);
+  } catch (error) { next(error); }
+});
 ```
 
 ::: tip Node.js SDK
-The [Node.js SDK](/node-sdk/#verifying-webhooks) shows the same verification inline. YeboID
-enforces a **300-second** timestamp tolerance on its side too, and your endpoint should do
-the same to guard against replays.
+The [Node.js SDK](/node-sdk/#verify-webhooks) implements strict signature and timestamp checks with a **300-second** replay window. Your application must store each event ID durably before acknowledging it so retries cannot apply the same change twice.
 :::
 
 ## Events

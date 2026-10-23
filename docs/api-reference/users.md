@@ -3,32 +3,27 @@
 The `/users/*` routes: profile, handle, email verification, sessions,
 connected apps, phone-number change, and account deletion.
 
-::: warning First-party surface
-These routes authenticate a **YeboID account holder** with a first-party
-access token from `/auth/otp/verify` or `/auth/login/pin`. They do not
-accept OAuth access tokens issued to your `client_id`.
-
-If you are integrating YeboID into your product, read profile data from
-[`GET /oauth/userinfo`](/api-reference/oauth) instead — that is the
-scope-gated surface built for third parties.
+::: warning Personal account permissions
+Account credentials, global sessions, connected apps, and deletion require a direct hosted YeboID session. Delegated tokens may read `GET /users/me` within their granted scopes, and may call `PATCH /users/me` only with `profile:write`. Business tokens are refused. For product integrations, prefer [`GET /oauth/userinfo`](/api-reference/oauth), the standard OIDC profile surface. See [permissions](/permissions).
 :::
+
 
 Base URLs and the shared request/response/error envelope are documented on
 the [REST API Reference](/api-reference).
 
 ## The user object
 
-`GET /users/me` and `PATCH /users/me` return this projection:
+Direct hosted sessions receive this projection. OAuth app responses include only fields allowed by their read scopes:
 
 ```json
 {
   "success": true,
   "user": {
     "id": "clx...",
-    "phone": "+26878422613",
-    "handle": "laslie",
-    "name": "Laslie Georges Jr.",
-    "email": "laslie@example.com",
+    "phone": "+26876000000",
+    "handle": "example_user",
+    "name": "Example Developer",
+    "email": "developer@example.invalid",
     "avatar": "https://...",
     "emailVerified": true,
     "emailVerifiedAt": "2026-03-18T20:00:00.000Z",
@@ -84,12 +79,12 @@ curl https://api.yeboid.com/users/me \
 curl -X PATCH https://api.yeboid.com/users/me \
   -H "Authorization: Bearer ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "Laslie G.", "handle": "laslie"}'
+  -d '{"avatar": "https://example.com/avatar.png", "handle": "example_user"}'
 ```
 
 | Field | Type | Constraints |
 |-------|------|-------------|
-| `name` | string | 1–100 characters |
+| `name` | — | Read-only, populated by identity verification. Writes are rejected. |
 | `email` | string | Valid email address |
 | `avatar` | string | Absolute URL |
 | `handle` | string | 3–30 chars, lowercase `a-z`, `0-9`, `_` only |
@@ -116,7 +111,7 @@ email verification flow afterwards.
 Public profile lookup. **No authentication.**
 
 ```bash
-curl https://api.yeboid.com/users/@laslie
+curl https://api.yeboid.com/users/@example_developer
 ```
 
 ```json
@@ -124,8 +119,8 @@ curl https://api.yeboid.com/users/@laslie
   "success": true,
   "user": {
     "id": "clx...",
-    "handle": "laslie",
-    "name": "Laslie Georges Jr.",
+    "handle": "example_user",
+    "name": "Example Developer",
     "avatar": "https://...",
     "verified": true,
     "createdAt": "2026-03-01T10:00:00.000Z"
@@ -191,7 +186,7 @@ Two-step, OTP-based confirmation. The code is emailed via YeboLink.
 **Auth required.** Sends a 6-digit code to the user's current address.
 
 ```json
-{ "success": true, "email": "laslie@example.com", "expiresIn": 300 }
+{ "success": true, "email": "developer@example.invalid", "expiresIn": 300 }
 ```
 
 **Errors:** `400 NO_EMAIL` (nothing on file), `409 ALREADY_VERIFIED`,

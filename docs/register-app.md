@@ -34,12 +34,10 @@ production, staging, and your local dev URL — or authorize will reject the
 request. Mobile apps register their custom scheme, e.g. `yourapp://auth`.
 :::
 
-::: danger Don't pick the wallet scopes
-The portal's scope picker still lists `wallet` and `wallet:transact`, but
-YeboID has **no wallet backend** and the API rejects them. Selecting either
-makes registration fail with `Invalid scopes`. Leave them unticked — the
-picker is ahead of the server here.
+::: tip Request the smallest useful permission set
+Use `openid profile offline_access` for basic sign-in. Add phone, email, KYC, or business permissions only when your integration requires them. The picker matches the API's supported scopes; wallet permissions are not supported. See [permissions](/permissions).
 :::
+
 
 ## What you get back
 
@@ -66,7 +64,7 @@ old one.
 | Client type | Uses the secret? |
 |-------------|------------------|
 | Browser SPA, mobile, desktop | **No.** These are *public* clients — PKCE alone authenticates the token request. Never ship a secret in code a user can read. |
-| Server-side web app, backend service | Yes. Send it via `client_secret_basic` or `client_secret_post`. |
+| Server-side web app, backend service | Yes. Send it in the server-side token request body (`client_secret_post`). |
 
 The discovery document advertises `none` in
 `token_endpoint_auth_methods_supported` precisely so public clients can
@@ -102,7 +100,7 @@ Returns `201` with the payload above.
 | 409 | An app with this slug already exists |
 
 See the [OAuth & OIDC reference](/api-reference/oauth) for the full app
-management surface — listing, updating, rotating the secret, and API keys.
+management surface — listing, updating, rotating the secret, and application credentials. There is no supported app API-key authentication flow.
 
 ## Next steps
 
@@ -113,4 +111,9 @@ management surface — listing, updating, rotating the secret, and API keys.
 ## Need help?
 
 - 📧 [developers@yeboid.com](mailto:developers@yeboid.com)
-- 📱 [WhatsApp +268 78 422 613](https://wa.me/26878422613)
+
+## Developer console preview
+
+![Manage the registered callback and scopes](/screenshots/app-settings.png)
+
+*Local UI with synthetic client ID and app data; no secret is exposed.*
