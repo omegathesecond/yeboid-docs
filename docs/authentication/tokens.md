@@ -41,7 +41,7 @@ Native applications should use their platform's secure credential storage. Never
 ## Backend verification and live permissions
 
 ```ts
-import { YeboID } from '@omevision/yeboid-node';
+import { YeboID } from 'yeboid-node';
 const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
 app.get('/profile', identity.authenticate(), identity.requireScopes('profile'), handler);
 ```

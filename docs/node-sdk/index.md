@@ -1,16 +1,16 @@
-# @omevision/yeboid-node
+# yeboid-node
 
 YeboID sign-in for Node APIs. Version 2.0.0 is available publicly on npm, with ESM and CommonJS exports and typed Express middleware. Node.js 18+.
 
 ```bash
-npm install @omevision/yeboid-node
+npm install yeboid-node
 ```
 
 ## Protect an API
 
 ```ts
 import express from 'express';
-import { YeboID, type AuthenticatedRequest } from '@omevision/yeboid-node';
+import { YeboID, type AuthenticatedRequest } from 'yeboid-node';
 
 const app = express();
 const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });

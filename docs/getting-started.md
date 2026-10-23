@@ -15,9 +15,9 @@ The client ID is public. Keep the client secret on your server; browser and mobi
 ## 2. Install the SDKs
 
 ```bash
-npm install @omevision/yeboid-web
+npm install yeboid-web
 # In your Node API project:
-npm install @omevision/yeboid-node
+npm install yeboid-node
 ```
 
 Public releases: Web **0.5.0**, Node **2.0.0**. Both exact versions were installed from npm using empty npm configuration and a fresh cache, without an npm token. The installed packages passed runtime and TypeScript integration checks. See [release verification](/security/release).
@@ -25,7 +25,7 @@ Public releases: Web **0.5.0**, Node **2.0.0**. Both exact versions were install
 ## 3. Add the React provider and button
 
 ```tsx
-import { YeboIDProvider, YeboIDSignInButton, useYeboID } from '@omevision/yeboid-web/react';
+import { YeboIDProvider, YeboIDSignInButton, useYeboID } from 'yeboid-web/react';
 
 function Account() {
   const { user, isLoading, error, retry, signOut } = useYeboID();
@@ -54,7 +54,7 @@ Set `VITE_YEBOID_CLIENT_ID` to the registered client ID. Serve your app on `/aut
 
 ```ts
 import express from 'express';
-import { YeboID, type AuthenticatedRequest } from '@omevision/yeboid-node';
+import { YeboID, type AuthenticatedRequest } from 'yeboid-node';
 
 const app = express();
 const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });

@@ -79,34 +79,37 @@
   "npm": {
     "account": "omegathesecond",
     "targets": {
-      "@omevision/yeboid-node": "2.0.0",
-      "@omevision/yeboid-web": "0.5.0"
+      "yeboid-node": "2.0.0",
+      "yeboid-web": "0.5.0"
     },
     "status": "published_public",
     "anonymousRegistryInstallVerified": true,
     "registryVerification": {
-      "verifiedAt": "2026-10-23T19:14:37.803769+00:00",
+      "verifiedAt": "2026-10-23T19:29:48.394173+00:00",
       "emptyNpmConfiguration": true,
       "freshCache": true,
       "anonymousRegistryInstallVerified": true,
       "consumerRuntimeAndTypeChecksPassed": true,
       "packages": [
         {
-          "package": "@omevision/yeboid-web",
+          "package": "yeboid-web",
           "version": "0.5.0",
-          "integrity": "sha512-8X8VR+gMTOyn1Viop0gm41GsvvQahqkF43S3Oaa0gKGV3mUHOVNfdOTaY4Taww+y5N3C/TUh+MSIJrbe3PL3WA==",
-          "tarball": "https://registry.npmjs.org/@omevision/yeboid-web/-/yeboid-web-0.5.0.tgz",
+          "integrity": "sha512-OhoVzrJ26k5hmbKkci8k4EE/BcsdOIIJndgwYRRd44HMTt4zo6rN4Iz2aAJlaahkMlVb+Mz6YPy57gfiGKRroA==",
+          "tarball": "https://registry.npmjs.org/yeboid-web/-/yeboid-web-0.5.0.tgz",
           "anonymousMetadataVerified": true
         },
         {
-          "package": "@omevision/yeboid-node",
+          "package": "yeboid-node",
           "version": "2.0.0",
-          "integrity": "sha512-rOE8TPi404pu0t0D5AaxMHLP36bm9mByPhcWY/fUHVfAqlJ/lKjVWA5IbZ/+cranA2yL4ZvqGryN30b5u8M6aQ==",
-          "tarball": "https://registry.npmjs.org/@omevision/yeboid-node/-/yeboid-node-2.0.0.tgz",
+          "integrity": "sha512-8N0Y3kB/ydQb3uXd/lYdBtVBG98G7EICwZyCgllVo8Eu8w2aV0O17wUvvYmB3urdY5HO8voz+nkHF05GVRZi0w==",
+          "tarball": "https://registry.npmjs.org/yeboid-node/-/yeboid-node-2.0.0.tgz",
           "anonymousMetadataVerified": true
         }
       ]
-    }
+    },
+    "distributionNaming": "unscoped_only",
+    "scopedPackagesUnpublished": true,
+    "scopedRemovalVerifiedAt": "2026-10-23T19:33:06.217261+00:00"
   },
   "usernames": {
     "totalUsers": 15810,
@@ -245,15 +248,15 @@
   "activePlaintextWebhookSubscriptions": 0,
   "sdkTarballs": [
     {
-      "package": "@omevision/yeboid-web",
+      "package": "yeboid-web",
       "version": "0.5.0",
-      "integrity": "sha512-8X8VR+gMTOyn1Viop0gm41GsvvQahqkF43S3Oaa0gKGV3mUHOVNfdOTaY4Taww+y5N3C/TUh+MSIJrbe3PL3WA==",
+      "integrity": "sha512-OhoVzrJ26k5hmbKkci8k4EE/BcsdOIIJndgwYRRd44HMTt4zo6rN4Iz2aAJlaahkMlVb+Mz6YPy57gfiGKRroA==",
       "files": 17
     },
     {
-      "package": "@omevision/yeboid-node",
+      "package": "yeboid-node",
       "version": "2.0.0",
-      "integrity": "sha512-rOE8TPi404pu0t0D5AaxMHLP36bm9mByPhcWY/fUHVfAqlJ/lKjVWA5IbZ/+cranA2yL4ZvqGryN30b5u8M6aQ==",
+      "integrity": "sha512-8N0Y3kB/ydQb3uXd/lYdBtVBG98G7EICwZyCgllVo8Eu8w2aV0O17wUvvYmB3urdY5HO8voz+nkHF05GVRZi0w==",
       "files": 9
     }
   ],
@@ -266,5 +269,9 @@
     "hostedUiJavaScript": "index-dgmXE0B6.js",
     "adminSourceCommit": "6d28dd5",
     "developmentScalingRestoredToZero": true
+  },
+  "sdkSourceCommits": {
+    "yeboid-node": "11d9fe5",
+    "yeboid-web": "a70931b"
   }
 }

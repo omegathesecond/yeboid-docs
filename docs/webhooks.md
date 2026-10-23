@@ -84,7 +84,7 @@ request body bytes** — parsing and re-serializing the JSON can change the byte
 the check.
 
 ```ts
-import { YeboID } from '@omevision/yeboid-node';
+import { YeboID } from 'yeboid-node';
 const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
 
 // Register this before express.json(). `inbox` is your durable queue/storage.

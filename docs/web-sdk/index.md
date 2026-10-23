@@ -1,15 +1,15 @@
-# @omevision/yeboid-web
+# yeboid-web
 
 YeboID sign-in for browsers and React. Version 0.5.0 is available publicly on npm. PKCE, OAuth state validation, rotating refresh, single-flight retries, and visible errors are included. No client secret belongs in a browser.
 
 ```bash
-npm install @omevision/yeboid-web
+npm install yeboid-web
 ```
 
 ## React: provider and sign-in button
 
 ```tsx
-import { YeboIDProvider, YeboIDSignInButton, useYeboID } from '@omevision/yeboid-web/react';
+import { YeboIDProvider, YeboIDSignInButton, useYeboID } from 'yeboid-web/react';
 
 function Account() {
   const { user, isLoading, error, retry, signOut } = useYeboID();
@@ -33,7 +33,7 @@ Register your exact callback in [Developer Apps](https://yeboid.com/developer/ap
 ## Framework-independent client
 
 ```ts
-import { YeboIDClient } from '@omevision/yeboid-web';
+import { YeboIDClient } from 'yeboid-web';
 const identity = new YeboIDClient({ clientId: 'YOUR_CLIENT_ID',
   redirectUri: `${window.location.origin}/auth/callback`,
   scope: ['openid', 'profile', 'offline_access'] });
@@ -48,7 +48,7 @@ if (YeboIDClient.isCallbackUrl(window.location)) {
 // await identity.signOut();
 ```
 
-Attach access tokens only to your own trusted API. Enforce authorization on the server with `@omevision/yeboid-node`; browser state and the returned ID token are not server authorization checks.
+Attach access tokens only to your own trusted API. Enforce authorization on the server with `yeboid-node`; browser state and the returned ID token are not server authorization checks.
 
 ## Permissions, errors, and business context
 
