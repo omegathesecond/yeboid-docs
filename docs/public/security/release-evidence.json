@@ -1,14 +1,14 @@
 {
   "reviewDate": "2026-10-23",
   "tests": {
-    "api": 644,
+    "api": 650,
     "sdk-node": 104,
     "sdk-web": 139,
     "hosted-ui": 98,
     "admin": 9,
     "legacy-sdk": 36
   },
-  "totalTests": 1030,
+  "totalTests": 1036,
   "consumerChecks": [
     "ESM",
     "CommonJS",
@@ -180,6 +180,7 @@
       "status": 401
     },
     "accountOriginRestricted": true,
+    "identityNoStoreAndSecurityHeaders": true,
     "ready": {
       "status": 200
     }
@@ -195,7 +196,7 @@
     },
     "https://docs.yeboid.com/security/release": {
       "status": 200,
-      "bytes": 32228
+      "bytes": 34501
     },
     "https://docs.yeboid.com/screenshots/sign-in.png": {
       "status": 200,
@@ -218,14 +219,29 @@
       "cloudflareAccessProtected": true
     }
   },
+  "activePlaintextWebhookSubscriptions": 0,
+  "sdkTarballs": [
+    {
+      "package": "@omevision/yeboid-web",
+      "version": "0.5.0",
+      "integrity": "sha512-8X8VR+gMTOyn1Viop0gm41GsvvQahqkF43S3Oaa0gKGV3mUHOVNfdOTaY4Taww+y5N3C/TUh+MSIJrbe3PL3WA==",
+      "files": 17
+    },
+    {
+      "package": "@omevision/yeboid-node",
+      "version": "2.0.0",
+      "integrity": "sha512-rOE8TPi404pu0t0D5AaxMHLP36bm9mByPhcWY/fUHVfAqlJ/lKjVWA5IbZ/+cranA2yL4ZvqGryN30b5u8M6aQ==",
+      "files": 9
+    }
+  ],
   "deployments": {
-    "apiProductionRevision": "yeboid-api-prod-00120-vb8",
-    "apiDevelopmentRevision": "yeboid-api-dev-00042-ggs",
-    "apiBuildId": "3954b39d-dc3f-4c1e-9860-563b2fc1b138",
-    "apiSourceCommit": "da6456a",
-    "hostedUiSourceCommit": "bc87b48",
+    "apiProductionRevision": "yeboid-api-prod-00125-nah",
+    "apiDevelopmentRevision": "yeboid-api-dev-00044-jmw",
+    "apiBuildId": "1bc707d3-4b7e-45b2-8705-83da3f12195c",
+    "apiSourceCommit": "e96df4c",
+    "hostedUiSourceCommit": "8dd42b3",
     "hostedUiJavaScript": "index-dgmXE0B6.js",
-    "adminSourceCommit": "d1d1503",
+    "adminSourceCommit": "6d28dd5",
     "developmentScalingRestoredToZero": true
   }
 }

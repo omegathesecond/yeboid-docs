@@ -1,5 +1,9 @@
 # @omevision/yeboid-node
 
+::: warning Public npm release pending
+The verified candidates are Web **0.5.0** and Node **2.0.0**. Public npm publication is waiting for the publisher's required 2FA setup. Installation commands below apply after publication; [release evidence](/security/release) distinguishes tested tarballs from registry availability.
+:::
+
 YeboID sign-in for Node APIs. Version 2.0.0 targets public npm distribution, ESM and CommonJS, and typed Express middleware. Node.js 18+.
 
 ```bash

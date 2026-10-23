@@ -1,5 +1,9 @@
 # Add YeboID sign-in
 
+::: warning Public npm release pending
+The verified candidates are Web **0.5.0** and Node **2.0.0**. Public npm publication is waiting for the publisher's required 2FA setup. Installation commands below apply after publication; [release evidence](/security/release) distinguishes tested tarballs from registry availability.
+:::
+
 Give users one account and one shared username across YeboID and Hiyebo. Your app stores the stable `sub` as its user reference. Fetch profile data from YeboID with the user's consent.
 
 ## 1. Register an application

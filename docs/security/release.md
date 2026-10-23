@@ -6,7 +6,7 @@ Reviewed on **23 October 2026**. Release candidates are `@omevision/yeboid-node@
 
 | Component | Tests passed | npm audit findings |
 |---|---:|---:|
-| Identity API | 644 | 0 |
+| Identity API | 650 | 0 |
 | Node SDK | 104 | 0 |
 | Browser SDK | 139 | 0 |
 | Hosted sign-in UI | 98 | 0 |
@@ -14,7 +14,7 @@ Reviewed on **23 October 2026**. Release candidates are `@omevision/yeboid-node@
 | Retained private legacy SDK | 36 | 0 |
 | Documentation | Build and eight-page browser check | 0 |
 
-The suites total **1,030 passing tests**. [Download the release evidence](/security/release-evidence.json). These results cover the reviewed release source; npm availability and live behavior are separate gates.
+The suites total **1,036 passing tests**. [Download the release evidence](/security/release-evidence.json). These results cover the reviewed release source; npm availability and live behavior are separate gates.
 
 ## What was checked
 
@@ -24,7 +24,7 @@ The suites total **1,030 passing tests**. [Download the release evidence](/secur
 | Business permissions | Scope checks plus current membership, role, app connection and suspension checks; business context never grants account administration |
 | Token validation | RS256, issuer, audience, expiry, access-token purpose and scope shape; ID tokens rejected by API middleware |
 | Token lifecycle | PKCE and redirect binding, atomic single-use authorization codes and refresh rotation, foreign-client revocation refusal, bans/disabled apps/revoked grants |
-| Webhooks | Actual API HMAC format, raw body and timestamp replay protection, connection-time public DNS validation, redirects refused |
+| Webhooks | Actual API HMAC format, raw body and timestamp replay protection, HTTPS-only destinations, connection-time public DNS validation, redirects refused |
 | Browser integrations | Credential-free machine OAuth endpoints support public-client CORS; hosted account routes retain the UI origin allowlist |
 | Deployment inputs | Environment files, private keys, local dependencies and Git metadata excluded from build upload/container context; production signing keys and administrator MFA required |
 | Packaging | Only distribution files, manifest, README and MIT license; ESM, CommonJS, TypeScript and optional React entry verified |
@@ -46,7 +46,7 @@ The clean consumer test mints tokens through the actual API signing service usin
 
 ## Deployment checks
 
-The API security release is deployed as production revision `yeboid-api-prod-00120-vb8`. Live checks verify discovery/JWKS, the public OAuth CORS contract, rejected unauthenticated account/developer/admin requests, and database readiness. The hosted login serves the tested `index-dgmXE0B6.js` asset. The admin console retains its Cloudflare Access gate. Development was temporarily started for the same API checks and restored to its original zero-instance setting.
+The API security release is deployed as production revision `yeboid-api-prod-00125-nah`. Live checks verify discovery/JWKS, the public OAuth CORS contract, rejected unauthenticated account/developer/admin requests, and database readiness. The hosted login serves the tested `index-dgmXE0B6.js` asset. The hosted UI and admin console have explicit script and framing policies, verified by rendering their production bundles under those policies. Identity API responses carry `Cache-Control: no-store`, anti-embedding and content-type headers, including errors. The admin console retains its Cloudflare Access gate. Development was temporarily started for the same API checks and restored to its original zero-instance setting.
 
 The shared username registry was rechecked: **15,810 users, zero missing usernames and zero registry repairs needed**. No additional backfill writes were required.
 
@@ -54,4 +54,4 @@ The shared username registry was rechecked: **15,810 users, zero missing usernam
 
 Offline JWT verification cannot observe a new ban or revoked consent until expiry; use introspection for sensitive actions. Browser localStorage is readable by same-origin JavaScript, so XSS prevention and CSP remain the integrating application's responsibility. Public native callback schemes can be claimed by another installed app; PKCE limits code theft, and platform-verified HTTPS links are preferable when available.
 
-Some abuse limits are held per API process. Aggregate limits grow with the number of Cloud Run instances; monitor abuse and enforce account lockouts/edge limits alongside them. Local tests mock databases and providers: they are not a penetration test of every production dependency, a delivery test of SMS/email, or proof that all third-party products are correctly integrated.
+Some abuse limits are held per API process. Aggregate limits grow with the number of Cloud Run instances; monitor abuse and enforce account lockouts/edge limits alongside them. Session-store outages propagate as API errors rather than being presented as a successful anonymous session. Local tests mock databases and providers: they are not a penetration test of every production dependency, a delivery test of SMS/email, or proof that all third-party products are correctly integrated.

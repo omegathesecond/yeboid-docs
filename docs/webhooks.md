@@ -74,6 +74,8 @@ X-YeboID-Delivery-ID: dlv_abc123
 
 The event type is the **`event`** field (and the `X-YeboID-Event` header).
 
+Webhook URLs must use **HTTPS** and resolve to public addresses. Plaintext HTTP, internal addresses and redirects are refused both when configuring a subscription and when sending it.
+
 ## Verifying signatures
 
 YeboID signs **`${timestamp}.${rawBody}`** with HMAC-SHA256 using your subscription's
