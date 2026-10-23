@@ -1,5 +1,8 @@
 # Add YeboID sign-in
 
+**Using an AI coding agent?** [Generate a working integration with one command](/ai-agents). The setup CLI checks your registered callback and permissions before generating code.
+
+
 Give users one account and one shared username across YeboID and Hiyebo. Your app stores the stable `sub` as its user reference. Fetch profile data from YeboID with the user's consent.
 
 ## 1. Register an application

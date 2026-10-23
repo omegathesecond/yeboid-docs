@@ -42,7 +42,9 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/' },
           { text: 'Getting Started', link: '/getting-started' },
+          { text: 'Integrate with an AI Agent', link: '/ai-agents' },
           { text: 'Register Your App', link: '/register-app' },
+          { text: 'Verify and Publish an App', link: '/app-verification' },
           { text: 'Permissions', link: '/permissions' },
           { text: 'Troubleshooting', link: '/troubleshooting' }
         ]

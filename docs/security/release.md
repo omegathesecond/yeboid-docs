@@ -1,57 +1,60 @@
 # Security and release verification
 
-Reviewed and published on **23 October 2026**. Public npm releases are [`yeboid-node@2.0.0`](https://www.npmjs.com/package/yeboid-node/v/2.0.0) and [`yeboid-web@0.5.0`](https://www.npmjs.com/package/yeboid-web/v/0.5.0). Both were installed anonymously with empty user/global npm configuration and a fresh cache. Registry integrity matches the tested tarballs, and the installed packages passed ESM, CommonJS, TypeScript, React rendering, API-issued access-token validation, ID-token rejection and webhook HMAC/tamper checks.
+Updated **24 October 2026**. Release availability and a passing local test are separate checks.
 
-## Test and dependency results
+## Developer onboarding release
 
-| Component | Tests passed | npm audit findings |
-|---|---:|---:|
-| Identity API | 650 | 0 |
-| Node SDK | 104 | 0 |
-| Browser SDK | 139 | 0 |
-| Hosted sign-in UI | 98 | 0 |
-| Admin console | 9 | 0 |
-| Retained private legacy SDK | 36 | 0 |
-| Documentation | Build and eight-page browser check | 0 |
-
-The suites total **1,036 passing tests**. [Download the release evidence](/security/release-evidence.json). These results cover the reviewed release source; npm availability and live behavior are separate gates.
-
-## What was checked
-
-| Area | Verification |
+| Gate | Status |
 |---|---|
-| Account permissions | Delegated apps receive only consented profile fields; profile writes require `profile:write`; account credentials, global sessions, client secrets, webhooks and account deletion require the person's direct YeboID session |
-| Business permissions | Scope checks plus current membership, role, app connection and suspension checks; business context never grants account administration |
-| Token validation | RS256, issuer, audience, expiry, access-token purpose and scope shape; ID tokens rejected by API middleware |
-| Token lifecycle | PKCE and redirect binding, atomic single-use authorization codes and refresh rotation, foreign-client revocation refusal, bans/disabled apps/revoked grants |
-| Webhooks | Actual API HMAC format, raw body and timestamp replay protection, HTTPS-only destinations, connection-time public DNS validation, redirects refused |
-| Browser integrations | Credential-free machine OAuth endpoints support public-client CORS; hosted account routes retain the UI origin allowlist |
-| Deployment inputs | Environment files, private keys, local dependencies and Git metadata excluded from build upload/container context; production signing keys and administrator MFA required |
-| Packaging | Only distribution files, manifest, README and MIT license; ESM, CommonJS, TypeScript and optional React entry verified |
+| Public app configuration and scope catalog | Deployed to production; read-only, credential-free CORS; no client secret or owner identity in the response |
+| Portal permission presets and AI setup command | Deployed, with matching `openid profile offline_access` defaults |
+| Hosted login and returning-consent fix | Deployed; includes SSO cookies and validated callback handling |
+| `yeboid-node@3.0.0` and `yeboid-web@1.0.0` | Tested tarballs prepared; **publication and anonymous installation pending npm security-key approval** |
+| AI setup guide and screenshots | Built in an isolated documentation release; publication awaits the SDK release |
+| Developer KYC/domain verification policy | Candidate implemented and tested; **migration and strict production cutover not applied** |
 
-The clean consumer test mints tokens through the actual API signing service using synthetic users, generated keys and local HTTP endpoints. It verifies accepted access tokens, rejected ID tokens, React rendering and independently computed webhook HMACs. It does not contact a production database or send OTPs.
+The currently verified public registry versions remain `yeboid-node@2.0.0` and `yeboid-web@0.5.0`. The new `doctor` and `init` commands require Node SDK 3.0.0; do not assume they exist in 2.0.0.
 
-## Reproduce the release gates
+## Current validation
 
-1. In each SDK, run `npm ci`, `npm test`, `npm run typecheck`, `npm run build`, and `npm audit`.
-2. Pack the exact distribution and install it in a fresh project. Verify ESM, CommonJS, TypeScript, React exports, API-issued claims and webhook signatures.
-3. Publish the tested tarballs with public access using an authorized npm identity with 2FA. Never weaken npm account security to bypass a release failure.
-4. From an empty npm configuration without a token, install those exact registry versions and repeat the consumer checks. Verify registry integrity against the tested tarballs.
-5. Build the documentation, check internal links, inspect screenshots and verify the deployed public URLs.
-6. Build/deploy the API and hosted UI from the reviewed source, then verify live discovery, JWKS, OAuth errors, CORS and protected-route failures separately from local tests.
+| Component | Passing tests | Build | Dependency audit |
+|---|---:|---|---|
+| Setup-support API release | 655 | Pass | 0 reported vulnerabilities |
+| Full scope and verification API candidate | 672 | Pass | 0 reported vulnerabilities |
+| Node SDK 3.0.0 candidate | 110 | Pass + TypeScript | 0 reported vulnerabilities |
+| Web SDK 1.0.0 candidate | 145 | Pass + TypeScript | 0 reported vulnerabilities |
+| Portal setup subset | 130 | Pass | 0 reported vulnerabilities |
+| Portal verification candidate | 133 | Pass | 0 reported vulnerabilities |
+| Admin console | 9 | Pass with explicit production API URL | 0 reported vulnerabilities |
+| Generated React/Node starter | Browser journey below | Pass | 0 runtime or full-tree reported vulnerabilities |
+| Documentation | Internal-link/build check | Pass | 0 reported vulnerabilities |
 
-## Screenshots and data
+The portal integrates the existing main-branch outage recovery and session-ownership protections while continuing to load the canonical account profile. Business consent clearly distinguishes third-party selections from Omevision-wide business access.
 
-[The quickstart](/getting-started) and [app registration](/register-app) include screenshots of the real local sign-in, app settings and consent UI. Accounts, phone numbers, client IDs and app details are synthetic fixtures. No production credentials or real verification documents appear in the images.
+The dependency refresh patches Zod to 4.6.7, updates parser/proxy/query dependencies, and adjusts the API validation error handler to use the current issue structure. A valid UUID fixture replaced a malformed UUID accepted by the old validator. No validation bypass or compatibility parser was added. [Zod advisory](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), [proxy-address advisory](https://github.com/advisories/GHSA-jqcg-44mw-7w3h).
 
-## Deployment checks
+## Browser and package proof
 
-The API security release is deployed as production revision `yeboid-api-prod-00125-nah`. Live checks verify discovery/JWKS, the public OAuth CORS contract, rejected unauthenticated account/developer/admin requests, and database readiness. The hosted login serves the tested `index-dgmXE0B6.js` asset. The hosted UI and admin console have explicit script and framing policies, verified by rendering their production bundles under those policies. Identity API responses carry `Cache-Control: no-store`, anti-embedding and content-type headers, including errors. The admin console retains its Cloudflare Access gate. Development was temporarily started for the same API checks and restored to its original zero-instance setting.
+A fresh consumer installed the exact packed SDKs. The installed CLI checked a synthetic registration and generated a React frontend and protected Node API. Chrome completed hosted consent, PKCE code exchange, callback, a real signed-token API call, returning-session reload and logout. Both runtime and full dependency audits of the generated project report zero vulnerabilities.
 
-The shared username registry was rechecked: **15,810 users, zero missing usernames and zero registry repairs needed**. No additional backfill writes were required.
+The browser check caught and fixed a missing `/oauth/authorize` path in generated configuration before publication. The generator refuses existing output directories. Names, phone numbers, client IDs, domain proof and KYC state in [the screenshots](/ai-agents#tested-browser-journey) are synthetic. No OTP was sent, production profile shared, real person's KYC approved or actual external domain verified by this fixture.
 
-## Operational limits
+Anonymous installation of the **new** registry releases has not yet passed because publication is pending. Previous-version anonymous registry evidence remains available in [the historical report](/security/release-evidence.json). The new evidence is [available separately](/security/onboarding-evidence.json).
 
-Offline JWT verification cannot observe a new ban or revoked consent until expiry; use introspection for sensitive actions. Browser localStorage is readable by same-origin JavaScript, so XSS prevention and CSP remain the integrating application's responsibility. Public native callback schemes can be claimed by another installed app; PKCE limits code theft, and platform-verified HTTPS links are preferable when available.
+## Verification cutover impact
 
-Some abuse limits are held per API process. Aggregate limits grow with the number of Cloud Run instances; monitor abuse and enforce account lockouts/edge limits alongside them. Session-store outages propagate as API errors rather than being presented as a successful anonymous session. Local tests mock databases and providers: they are not a penetration test of every production dependency, a delivery test of SMS/email, or proof that all third-party products are correctly integrated.
+Read-only production inventory found **23 active apps, 22 KYC-verified owners, one owner without verified KYC, and no recorded domain-ownership proofs**. Applying the strict policy immediately would return every existing app to testing and stop public logins until its requirements pass. Existing OAuth refresh credentials without an original scope ceiling will require fresh sign-in after cutover. Direct YeboID login sessions are distinct.
+
+The candidate migration creates app-bound, expiring DNS/HTTPS ownership proof and a production flag, plus an original scope ceiling on OAuth refresh credentials. It does not manufacture historical proof, broaden consent or exempt first-party apps. The staged transition decision is pending; the production migration is deliberately unapplied. See [the verification flow](/app-verification).
+
+## Permission boundaries
+
+New SDK preflight checks exact callbacks and registered scopes before browser navigation. The candidate server enforces the scope ceiling for raw OAuth requests as well, checks current grants at userinfo/introspection, refuses code exchange after consent withdrawal, requires offline access for refresh issuance, and prevents an old refresh credential from acquiring a later consent upgrade.
+
+Developer verification endpoints require a direct owner session. Unauthenticated, foreign-owner, app-delegated and business tokens cannot administer app verification. Proof checks reject private/internal networks, DNS rebinding, redirects, oversized bodies, incorrect/rotated/expired proofs and concurrent configuration changes. Failures remain visible.
+
+## Limits
+
+Local JWT verification cannot instantly observe bans, revoked consent or app-state changes; use introspection for sensitive operations requiring current state. Browser localStorage requires strong XSS defenses and CSP. Native custom callback schemes can be claimed by another app; prefer platform-verified HTTPS links where available. Some API abuse limits are per process, so aggregate limits increase with Cloud Run instance count.
+
+Unit tests mock databases/providers, and the browser journey uses a synthetic database. These checks do not constitute a full production penetration test, real-device native login test, SMS delivery test or proof that every portfolio app has been integrated. New schema migration behavior has been validated at the schema/source level, not applied to production.
