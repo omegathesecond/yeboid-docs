@@ -1,0 +1,600 @@
+# YeboID integration reference
+
+<!-- Source: https://docs.yeboid.com/ai-agents -->
+
+# Integrate YeboID with your AI agent
+
+Give your coding agent this page. It can inspect the registered app, check permissions, generate an integration and test it. You stay in control of identity verification and account consent.
+
+## One setup command
+
+1. Sign in to [Developer Apps](https://yeboid.com/developer/apps), create an app and copy its **public client ID**. Register `http://localhost:5173/auth/callback` for local web development. Keep `openid profile offline_access` for basic sign-in.
+2. Ask your agent to run:
+
+```sh
+npx yeboid-node init \
+  --client-id YOUR_CLIENT_ID \
+  --redirect-uri http://localhost:5173/auth/callback \
+  --output my-app
+cd my-app
+npm install
+npm run dev
+```
+
+3. Open the local app, click **Continue with YeboID**, complete your login and approve the requested permissions. After returning, click **Call protected API**. That proves the browser and API work together.
+
+The generated project includes a React frontend, a protected Express API, public configuration, and `AGENTS.md` instructions. It refuses an existing output directory. It does not need a client secret for the browser's PKCE flow.
+
+For an existing project, install `yeboid-web` in the frontend and `yeboid-node` in the API. Ask your agent to adapt the generated example to the existing framework instead of replacing the project.
+
+## Copy this prompt
+
+```text
+Integrate YeboID into this app. Read https://docs.yeboid.com/llms.txt
+and https://docs.yeboid.com/ai-agents/ first. Reuse the existing auth and
+routing structure. My public client ID is CLIENT_ID and registered callback
+is CALLBACK_URL.
+
+Run yeboid-node doctor with --json first. Fix registration/request mismatches
+explicitly; never silently drop permissions. Use yeboid-web for browser PKCE
+and yeboid-node authenticate() for the Node API. The generator is React + Node
+only; adapt the SDK calls to an existing stack. Keep secrets out of browser code.
+Store only sub as yeboid_user_id. Show all auth/dependency failures.
+
+Verify new login, callback, a protected API request, returning login,
+denial, logout, and missing-permission recovery. Report local tests,
+public package versions, deployment, and actual live login separately.
+Leave human identity verification and consent to me.
+```
+
+## Check before deploying
+
+```sh
+npx yeboid-node doctor \
+  --client-id YOUR_CLIENT_ID \
+  --redirect-uri https://your-app.example/auth/callback \
+  --scopes openid,profile,offline_access \
+  --json
+```
+
+A nonzero exit means setup needs attention. The response lists `missingScopes`, `issues`, `requestedScopes` and `setupUrl`. This command reads public registration data; it cannot certify a live login, ownership of a domain, or successful KYC.
+
+Use `--issuer https://dev-api.yeboid.com` for a client registered in the development environment. Client IDs and callbacks belong to their environment. Do not send development tokens to a production API.
+
+## Permissions without guesswork
+
+The API, portal and both SDKs share `openid profile offline_access` as the default. The public catalog at [`/oauth/scopes`](https://api.yeboid.com/oauth/scopes) defines supported scopes and presets. `/oauth/clients/{clientId}/configuration` returns registered callbacks and permissions without secrets or owner identity.
+
+Every permission must be **registered → requested → consented → enforced**. Adding a permission requires new user consent. Token refresh cannot add permissions. `kyc` allows reading verification status; it does not itself require the user to be verified. `openid` identifies an account; it does not perform KYC. See [permissions](/permissions).
+
+The browser SDK checks configuration before redirecting. It fails visibly on mismatched callbacks, missing scopes or unavailable configuration. Node's `checkIntegration()` provides the same check for startup or CI. Use the actual granted scope from a token response or introspection when deciding what is available. A frontend check never replaces server authorization.
+
+## Production verification
+
+Developer identity verification and domain ownership are separate from end-user consent. Before enabling public production login, complete both in Developer Apps and supply an HTTPS website and privacy policy. Native app callbacks still require PKCE; prefer verified HTTPS app links where supported.
+
+The verification cutover is tracked in [release status](/security/release). An app registration or a passing doctor command alone is not proof that the verification gate has been deployed or that the app is approved for public login.
+
+## Acceptance checks for every platform
+
+1. Registration: exact callback and requested scopes match the public configuration; mismatches/outages produce an actionable error before sign-in.
+2. New login and returning login: a human completes sign-in/consent, the callback reaches the host, and userinfo returns a real `sub`.
+3. Refusal/cancellation, wrong callback/state and expired/consumed codes fail visibly; no fabricated user appears.
+4. A product API accepts an access token for the right client and rejects ID tokens, refresh tokens, wrong audiences and insufficient scopes. Resource ownership is checked separately.
+5. Refresh persists the rotated token before another call. Concurrent refresh/logout cannot revive a signed-out session. Uncertain rotation/storage failures require a new login instead of replay.
+6. App sign-out revokes its refresh token and clears secure local/server storage after success. Browser SSO behavior is reported separately.
+7. Test network and storage failures. Report local tests/build, public source/package access, deployment and real-device/live login as separate evidence.
+
+Agents using the product need a human-authorized session. YeboID does not advertise client-credentials or device-code grants; do not invent machine-login endpoints or bypass human consent.
+
+## Security boundaries for agents
+
+- Use access tokens for API requests; never substitute an ID token.
+- Keep `client_secret`, tokens and signing keys out of source control, screenshots and browser variables.
+- Store only the stable `sub` as `yeboid_user_id` in your app's database. Fetch profile and KYC data from YeboID instead of copying them.
+- Check resource ownership in your own API after authentication. Scopes grant capabilities, not ownership of another user's resources.
+- Local JWT verification checks signature, issuer, audience, purpose and expiry. Use introspection where you need current revocation/permission state.
+- Failed API requests must produce visible errors. Do not fabricate users, default verification states or successful sessions.
+- See [troubleshooting](/troubleshooting) for `invalid_scope`, `insufficient_scope`, callback, PKCE and refresh errors.
+
+## Tested browser journey
+
+These screenshots come from a disposable synthetic account using the installed SDK tarballs, real PKCE/code exchange, the hosted consent UI and a Node API validating signed tokens. They do not certify a real person's identity or a production app's domain.
+
+![Requested default permissions on the hosted consent screen](/screenshots/onboarding/starter-consent.jpg)
+
+![Generated starter calling its protected API after callback](/screenshots/onboarding/starter-protected-api.jpg)
+
+The candidate [verification walkthrough](/app-verification) covers developer KYC, exact domain proof and enabling production logins.
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/app-verification -->
+
+# Verify and publish an app
+
+::: warning Rollout status
+This verification flow is implemented and tested in the candidate release. Its database migration and enforcement are **not enabled in production yet**. Existing applications must complete verification before the cutover. See [release status](/security/release).
+:::
+
+App registration starts in **testing**. The owner can use a loopback callback such as `http://localhost:5173/auth/callback`, or a native callback with PKCE. Other users and public web callbacks require production readiness.
+
+## Complete the checklist
+
+1. Sign in to [Developer Apps](https://yeboid.com/developer/apps) using your own YeboID account. Open **Verify and publish app**.
+2. Complete identity verification from your profile. A current `VERIFIED` KYC state and an active owner account are required. Your agent can prepare the integration; you complete identity verification yourself.
+3. In **Edit**, add the app's HTTPS website, HTTPS privacy-policy URL and exact production callbacks. Register the permissions your SDK will request.
+4. Create an ownership challenge for every website and HTTPS callback hostname. Each hostname is exact: `example.com`, `www.example.com` and `app.example.com` are separate proofs.
+5. Use one of the methods below, run the matching check, and then click **Enable production logins** when the server reports the checklist is complete.
+
+## DNS TXT proof
+
+Create the record shown in the portal:
+
+```text
+Type:  TXT
+Name:  _yeboid.app.example.com
+Value: yeboid-app-verification=APP_BOUND_RANDOM_CHALLENGE
+```
+
+DNS providers sometimes expect only the relative name. For a zone `example.com`, the relative name is `_yeboid.app`. The resolved record must match the exact challenge. Wait for propagation and click **Check DNS TXT**.
+
+## HTTPS file proof
+
+When you control the deployed app but cannot edit its DNS, serve the challenge text at:
+
+```text
+https://app.example.com/.well-known/yeboid/YOUR_CLIENT_ID.txt
+```
+
+Return HTTP 200 with the exact challenge as the file body. Do not redirect to another host, a login page or the application shell. This is suitable for hosting such as `pages.dev`. Click **Check HTTPS file**.
+
+The API refuses private/internal network destinations, DNS rebinding, redirects, failed TLS, incorrect bodies, responses over 8 KiB and expired challenges. A failed check remains visible; it does not manufacture successful ownership.
+
+## Proof lifetime and changes
+
+Challenges last 24 hours. Verified ownership lasts 90 days. Creating a new challenge invalidates the previous proof and returns the app to testing. Callback, permission, website or privacy-policy changes also return the app to testing and revoke its refresh tokens. Review the checklist and publish again.
+
+Publishing uses a configuration version check so a simultaneous app edit cannot publish stale settings. Owner KYC, account status and domain-proof expiry are checked again when issuing credentials. First-party Omevision apps follow the same policy.
+
+Changing the app to testing revokes its refresh tokens. Existing local JWT consumers may accept an already-issued token until expiry; [introspection](/node-sdk/#fresh-permission-checks) provides current authorization state.
+
+## API for developer tools
+
+These endpoints require a direct signed-in owner token. An app's delegated OAuth token cannot manage developer verification, even if its human subject owns that app.
+
+| Endpoint | Body / result |
+|---|---|
+| `GET /apps/:id/onboarding` | Mode, readiness, missing requirements, exact domains and expiry |
+| `POST /apps/:id/domains/challenge` | `{ "hostname": "app.example.com" }` → DNS and HTTPS instructions |
+| `POST /apps/:id/domains/verify` | `{ "hostname": "app.example.com", "method": "dns" }` or `"https"` |
+| `POST /apps/:id/publish` | Enable production only when all requirements pass |
+| `POST /apps/:id/unpublish` | Return to testing and revoke refresh tokens |
+
+`app_not_verified`, `app_in_testing`, `challenge_expired`, `challenge_changed`, `ownership_check_failed` and `app_changed` include actionable descriptions. Requests from another owner receive 404. Repeated ownership checks are rate limited.
+
+## Screenshot walkthrough
+
+The screenshot below uses a **synthetic account and simulated DNS in an isolated local fixture**. It illustrates the candidate screen; it is not proof of a real person's KYC, a real DNS record or production enforcement.
+
+![Candidate domain-proof instructions in the synthetic developer portal](/screenshots/onboarding/domain-proof-instructions.jpg)
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/register-app -->
+
+# Register Your App
+
+Every YeboID integration starts with an OAuth app. Registering one gives you
+the `client_id` (and, for confidential clients, the `client_secret`) that the
+[authorization-code + PKCE flow](/authentication/pkce) needs.
+
+Registration is **self-service** — sign in with your own YeboID and create the
+app yourself. Development setup and production verification are separate steps; check [current release status](/security/release) before relying on the verification gate.
+
+## Register in the developer portal
+
+1. Sign in at [yeboid.com](https://yeboid.com) with your phone number.
+2. Open the developer portal at
+   **[yeboid.com/developer/apps](https://yeboid.com/developer/apps)**.
+3. Click **Create App** and fill in the form.
+4. Copy the credentials shown on success.
+
+### What the form asks for
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| **Name** | Yes | 2–100 characters. Shown to users on the consent screen. |
+| **Slug** | Yes | 2–50 characters, lowercase letters, numbers and hyphens only. Must be globally unique. |
+| **Redirect URIs** | Yes | At least one absolute URL. Matched **exactly** at authorize time. |
+| **Scopes** | No | Defaults to `openid profile offline_access`. See [available scopes](/authentication/#available-scopes). |
+| **Logo URL** | No | Absolute URL, shown on the consent screen. |
+| **Website URL** | No | Absolute URL. |
+| **Privacy policy URL** | No | Absolute URL. |
+
+::: warning Redirect URIs are matched exactly
+`https://app.example.com/callback` and `https://app.example.com/callback/`
+are different URIs. Register every environment you will actually use —
+production, staging, and your local dev URL — or authorize will reject the
+request. Mobile apps register their custom scheme, e.g. `yourapp://auth`.
+:::
+
+::: tip Request the smallest useful permission set
+Use `openid profile offline_access` for basic sign-in. Add phone, email, KYC, or business permissions only when your integration requires them. The picker matches the API's supported scopes; wallet permissions are not supported. See [permissions](/permissions).
+:::
+
+
+## What you get back
+
+```json
+{
+  "success": true,
+  "app": { "id": "...", "name": "My App", "slug": "my-app" },
+  "credentials": {
+    "clientId": "yebo_1a2b3c...",
+    "clientSecret": "yebo_secret_9f8e..."
+  },
+  "warning": "Store the client_secret securely. It will not be shown again."
+}
+```
+
+::: danger The client secret is shown once
+YeboID stores only a hash of it. If you lose it, you cannot read it back —
+you must rotate it (`POST /apps/:id/rotate-secret`), which invalidates the
+old one.
+:::
+
+### Do you even need the secret?
+
+| Client type | Uses the secret? |
+|-------------|------------------|
+| Browser SPA, mobile, desktop | **No.** These are *public* clients — PKCE alone authenticates the token request. Never ship a secret in code a user can read. |
+| Server-side web app, backend service | Yes. Send it in the server-side token request body (`client_secret_post`). |
+
+The discovery document advertises `none` in
+`token_endpoint_auth_methods_supported` precisely so public clients can
+complete the flow without one.
+
+## Register via the API
+
+The portal is a client of the same endpoint discovery advertises as
+`registration_endpoint`. You can call it directly with a **user** access
+token — it registers the app to the signed-in YeboID user, exactly as the
+portal does.
+
+```bash
+curl -X POST https://api.yeboid.com/apps \
+  -H "Authorization: Bearer USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My App",
+    "slug": "my-app",
+    "redirectUris": ["https://app.example.com/callback"],
+    "scopes": ["openid", "profile", "phone"]
+  }'
+```
+
+Returns `201` with the payload above.
+
+**Errors:**
+
+| Status | Meaning |
+|--------|---------|
+| 400 | Validation failed, or `Invalid scopes` (the response lists `invalidScopes` and `availableScopes`) |
+| 401 | Missing or invalid access token |
+| 409 | An app with this slug already exists |
+
+See the [OAuth & OIDC reference](/api-reference/oauth) for the full app
+management surface — listing, updating, rotating the secret, and application credentials. There is no supported app API-key authentication flow.
+
+## Next steps
+
+- [OAuth2 + PKCE walkthrough](/authentication/pkce) — the flow end to end
+- [Node.js SDK](/node-sdk/) · [Web / React SDK](/web-sdk/) · [Flutter SDK](/flutter-sdk/)
+- [Webhooks](/webhooks) — get notified when a user's profile or KYC changes
+
+## Need help?
+
+- 📧 [developers@yeboid.com](mailto:developers@yeboid.com)
+
+## Developer console preview
+
+![Manage the registered callback and scopes](/screenshots/app-settings.png)
+
+*Local UI with synthetic client ID and app data; no secret is exposed.*
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/permissions -->
+
+# Permissions and consent
+
+Register only the permissions your app needs, request them in the authorization redirect, and enforce them on your API. Registration is a ceiling; the user's consent is the grant. Successful authentication alone is not authorization to modify an account or access every identity field.
+
+## Available scopes
+
+| Scope | What it permits | What it does not permit |
+| --- | --- | --- |
+| `openid` | Identify the person with stable `sub` | Read phone, email, documents, or administer their account |
+| `profile` | Name, shared username (`preferred_username`), avatar | Edit the profile |
+| `profile:write` | Update handle, avatar, or email via `PATCH /users/me` | Change a KYC-owned name, phone, PIN, global sessions, or developer credentials |
+| `phone` | Read `phone_number`, `phone_number_verified` | Change the phone number |
+| `email` | Read `email`, `email_verified` when present | Treat an unverified email as verified |
+| `kyc` | Verification status, country, currency | Read identity documents |
+| `kyc:full` | Full consented identity verification data | Bypass account ownership or business role rules |
+| `business` | List approved memberships and obtain business context | Administer a business with a business token |
+| `business:kyc` | Legal identity of a business for owner/admin roles | Reveal legal data to a member-role token |
+| `business:manage` | Manage a business using a person token and permitted role | Override owner-only operations |
+| `offline_access` | Request a refresh credential for continued sign-in | Perform unrelated actions without permission |
+
+`wallet` and `wallet:transact` are unsupported and rejected. YeboID manages identity; it does not implement a wallet API.
+
+## Enforcement points
+
+- `/oauth/userinfo` returns only claims covered by the granted scopes.
+- `GET /users/me` returns only granted fields for delegated app tokens. Direct hosted sessions see their own profile.
+- `PATCH /users/me` requires `profile:write` for app tokens; its response remains limited to the app's read scopes.
+- `/verification/status` requires `kyc` or `kyc:full` for apps. Only `kyc:full` receives `kycData`.
+- Phone/PIN changes, email verification actions, global session/connected-app administration, account deletion, OAuth app credentials, and webhook subscription administration require a direct YeboID user session. An OAuth token does not become a hosted account-management session.
+- Business tokens cannot read or administer personal identity routes. Use business-scoped userinfo for the context they represent.
+- Bearer authentication refuses deleted/banned users, revoked grants, and disabled OAuth apps. Dependencies failing to verify authorization return an error; they do not create an anonymous success.
+
+## Enforce permissions in your product
+
+```ts
+app.get('/private-profile', identity.authenticate(), identity.requireScopes('profile'), handler);
+```
+
+JWT checks are local and cached. They establish validity at issuance until the token expires; they do not contact YeboID for every request. For current consent and membership on high-impact actions, call `identity.introspect(token)` and require `active`, the needed scopes, and your product's own ownership rules. Never use a browser-only permission check as your server's authorization decision.
+
+## Revocation and errors
+
+Return `401` for missing/invalid/expired credentials, `403` for insufficient scope or role, and a visible `5xx` error when identity verification is unavailable. `DIRECT_SESSION_REQUIRED` means the user must complete the action in the hosted YeboID account UI. See [troubleshooting](/troubleshooting).
+
+## Setup checks for AI agents and CI
+
+```sh
+npx yeboid-node doctor --client-id YOUR_CLIENT_ID --redirect-uri YOUR_CALLBACK --json
+```
+
+New registrations and SDK defaults use `openid profile offline_access`. The browser SDK checks `/oauth/clients/{clientId}/configuration` before redirecting, and the portal reads `/oauth/scopes` for its picker. The new SDK preflight rejects unsupported and unregistered scopes before navigation for every app. The candidate server release also enforces that ceiling for raw OAuth requests, including first-party apps; check [release status](/security/release) for deployment. Permissions are never silently broadened or discarded during authorization.
+
+The candidate server release requires `offline_access` for a refresh token. Existing server issuance behavior remains until that cutover. Without it, handle access-token expiry by signing in again. Node token responses expose optional `refreshToken` and actual `scope`; browser clients expose `getGrantedScopes()` and `hasScope()`. Configured scopes express what the app asks for, not what a user granted.
+
+Changing registration cannot edit an already signed JWT. In the candidate server release, YeboID API authentication, userinfo and introspection intersect its scopes with the current grant and app registration. External APIs validating JWTs locally observe revocation/removal at token expiry; use introspection for sensitive operations requiring current state.
+
+Adding scopes means updating both app registration and SDK configuration, then starting sign-in again so the user can consent. A refresh request must stay within existing consent. This follows [OAuth refresh rules](https://www.rfc-editor.org/rfc/rfc6749#section-6) and the [OIDC offline-access consent requirement](https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess).
+
+## Business selection
+
+Third-party applications can access only businesses selected during consent. Under the existing Omevision first-party policy, the `business` permission covers all businesses the person manages; the consent screen explicitly discloses that access and does not present a restrictive picker for those apps. Developer verification and the candidate registered-scope ceiling still apply to first-party apps. A first-party flag never permits direct account administration through a business token.
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/web-sdk/ -->
+
+# yeboid-web
+
+YeboID sign-in for browsers and React. Version 0.5.0 is available publicly on npm. PKCE, OAuth state validation, rotating refresh, single-flight retries, and visible errors are included. No client secret belongs in a browser.
+
+```bash
+npm install yeboid-web
+```
+
+## React: provider and sign-in button
+
+```tsx
+import { YeboIDProvider, YeboIDSignInButton, useYeboID } from 'yeboid-web/react';
+
+function Account() {
+  const { user, isLoading, error, retry, signOut } = useYeboID();
+  if (isLoading) return <p>Loading your account…</p>;
+  if (error) return <div role="alert">{error.message} <button onClick={() => void retry()}>Retry</button></div>;
+  if (!user) return <YeboIDSignInButton />;
+  return <p>Signed in as @{user.preferred_username} <button onClick={() => void signOut().catch(window.alert)}>Sign out</button></p>;
+}
+
+export function App() {
+  return <YeboIDProvider config={{
+    clientId: import.meta.env.VITE_YEBOID_CLIENT_ID,
+    redirectUri: `${window.location.origin}/auth/callback`,
+    scope: ['openid', 'profile', 'offline_access'],
+  }}><Account /></YeboIDProvider>;
+}
+```
+
+Register your exact callback in [Developer Apps](https://yeboid.com/developer/apps). Serve the provider on that callback and configure your SPA fallback. No API origin/endpoint overrides are needed for production. The React entry is optional; the root SDK does not depend on a React runtime.
+
+## Framework-independent client
+
+```ts
+import { YeboIDClient } from 'yeboid-web';
+const identity = new YeboIDClient({ clientId: 'YOUR_CLIENT_ID',
+  redirectUri: `${window.location.origin}/auth/callback`,
+  scope: ['openid', 'profile', 'offline_access'] });
+if (YeboIDClient.isCallbackUrl(window.location)) {
+  const { user } = await identity.handleCallback();
+  window.history.replaceState({}, '', '/');
+  console.log(user.sub, user.preferred_username);
+}
+// On an explicit user action:
+// await identity.signIn();
+// const response = await identity.fetch('https://YOUR_TRUSTED_API.example/me');
+// await identity.signOut();
+```
+
+Attach access tokens only to your own trusted API. Enforce authorization on the server with `yeboid-node`; browser state and the returned ID token are not server authorization checks.
+
+## Permissions, errors, and business context
+
+Start with `openid profile offline_access`. Phone, email, identity documents, and business context require their own consented scopes. `preferred_username` is the shared YeboID/Hiyebo username. Keep `sub` as the stable identity reference.
+
+`useYeboID()` exposes `error`, `retry()`, and `resetError()`. `YeboIDSignInButton` renders sign-in failures in an alert and accepts an `onError` callback. Logout/refresh/network errors propagate; do not fabricate a successful login. The default storage is localStorage, so use a strong CSP and prevent XSS in your application. Never put client secrets in that storage.
+
+Scope types include `business`, `business:kyc`, and `business:manage`. Business context never replaces the human subject. `IntrospectionResult` scope helpers require an active token. Public exports include the business claim types, typed errors, and storage helpers.
+
+See [quickstart](https://docs.yeboid.com/getting-started), [permissions](https://docs.yeboid.com/permissions), [troubleshooting](https://docs.yeboid.com/troubleshooting), and [source](https://github.com/omegathesecond/yeboid-web-sdk). Publishing availability is verified separately from a successful build. MIT license.
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/node-sdk/ -->
+
+# yeboid-node
+
+YeboID sign-in for Node APIs. Version 2.0.0 is available publicly on npm, with ESM and CommonJS exports and typed Express middleware. Node.js 18+.
+
+```bash
+npm install yeboid-node
+```
+
+## Protect an API
+
+```ts
+import express from 'express';
+import { YeboID, type AuthenticatedRequest } from 'yeboid-node';
+
+const app = express();
+const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
+
+app.get('/me', identity.authenticate(), identity.requireScopes('profile'),
+  async (req, res, next) => {
+    try {
+      // JWT verification gives identity + permissions. Userinfo gives consented profile claims.
+      const personId = (req as AuthenticatedRequest).user!.sub;
+      const profile = await identity.getUserInfo(req.headers.authorization!.slice(7));
+      res.json({ personId, username: profile.handle });
+    } catch (error) { next(error); }
+  });
+app.listen(3000);
+```
+
+Only a client ID is required to validate access tokens. For a server-driven authorization flow, also provide `redirectUri` and, for a confidential client, `clientSecret`. Defaults are `https://api.yeboid.com` for issuer/API calls and `https://yeboid.com/oauth/authorize` for hosted login.
+
+## Verify webhooks
+
+Mount the raw-body route before `express.json()`:
+
+```ts
+app.post('/webhooks/yeboid', express.raw({ type: 'application/json' }), (req, res) => {
+  const valid = identity.verifyWebhook(req.body,
+    req.get('X-YeboID-Signature') ?? '', process.env.YEBOID_WEBHOOK_SECRET!,
+    req.get('X-YeboID-Timestamp') ?? '');
+  if (!valid) return res.sendStatus(401);
+  const event = JSON.parse(req.body.toString('utf8'));
+  // Deduplicate event.id in your database before applying event.event.
+  res.sendStatus(200);
+});
+```
+
+Signatures are `v1=HMAC_SHA256(secret, timestamp + '.' + rawBody)`, with a five-minute replay window. Raw/legacy signature schemes are rejected.
+
+## Authorization
+
+`authenticate()` validates RS256, issuer, audience, expiry and access-token purpose. The API wire payload uses `scopes: string[]`; ID tokens cannot authenticate API routes. `req.user.sub` is the person; `req.user.businessId` is optional business context. `getUserInfo()` maps OIDC `preferred_username` to `handle` and `phone_number` to `phone` without inventing missing values. Never derive a username from a display name.
+
+Use `requireScopes(...scopes)` plus your own resource ownership rules. For current revocation/role state call `introspect(token)` and check `active`, `hasScope()`/`hasAllScopes()`. An inactive result grants no permissions, even an empty requested set. Offline JWT validation alone cannot instantly observe a server-side revocation.
+
+## Version 2 migration
+
+- `verifyWebhook` and `verifyWebhookSignature` now require the timestamp argument and the API's `v1=` signature format.
+- Access-token middleware reads YeboID's actual `type: 'access'` and `scopes` claims; signed ID tokens or malformed payloads are refused.
+- Production endpoint defaults are correct; use `authUrl` separately when configuring another hosted environment.
+- Do not use the legacy private `yeboid-sdk` package for new integrations.
+
+See [the quickstart](https://docs.yeboid.com/getting-started), [permissions](https://docs.yeboid.com/permissions), and [the source](https://github.com/omegathesecond/yeboid-sdk-node). Publishing availability is verified separately from a successful build. MIT license.
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/authentication/tokens -->
+
+# Token management
+
+| Token | Purpose | Default lifetime |
+|---|---|---|
+| Access JWT | Authorize API requests | 15 minutes |
+| Opaque refresh token | Rotate the token set | 60 days |
+| ID JWT | Describe the authenticated person to the client | 1 hour |
+
+Use the token response's `expires_in` as authoritative. Operators can configure access and refresh lifetimes.
+
+## Access tokens and claims
+
+Send `Authorization: Bearer ACCESS_TOKEN`. YeboID signs access tokens using RS256. OAuth access JWTs carry `iss`, `sub`, `aud` (your public client ID), `exp`, `iat`, `type: "access"`, `appId`, and `scopes: string[]`. Business tokens also carry `business_id` and `business_role`; `sub` remains the person.
+
+The OAuth token response and introspection response use a space-separated `scope` string. That wire field is different from the access JWT's `scopes` array. Use the [Node SDK](/node-sdk/) to avoid implementing the distinction yourself.
+
+An ID token is for the client that initiated login. Never accept it as an API bearer token. Validate its signature, issuer, audience, expiry, and the `nonce` from your authorization request before trusting identity claims. The browser SDK uses the access token and userinfo for the session profile.
+
+## Rotation and concurrency
+
+```bash
+curl https://api.yeboid.com/oauth/token \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode grant_type=refresh_token \
+  --data-urlencode client_id=YOUR_CLIENT_ID \
+  --data-urlencode refresh_token=YOUR_REFRESH_TOKEN
+```
+
+Persist the returned refresh token before sending another refresh. Serialize refresh calls: tokens are single use, and replaying an already revoked refresh token triggers revocation of that user's outstanding refresh tokens. The browser SDK shares one in-flight refresh within a client instance and protects against stale session results. Coordinate separately across tabs or server workers.
+
+An optional `scope` narrows permissions; it cannot add permissions beyond the active consent grant. Revoked consent, a disabled account, or lost business access prevents renewal. Authorization codes are also single use and bound to the exact client, redirect URI, and PKCE verifier.
+
+## Browser storage
+
+The browser SDK defaults to localStorage so a login redirect and subsequent visits can restore the session. JavaScript executing on your origin can read it: prevent XSS, use a restrictive Content Security Policy, and avoid untrusted scripts. Storage write failures propagate instead of pretending tokens were saved. You may provide the SDK's `Storage` interface; memory-only storage does not survive a full-page PKCE redirect by itself.
+
+For applications requiring tokens inaccessible to browser JavaScript, implement a backend-for-frontend using the Node SDK. Keep tokens on your server and give the browser a Secure, HttpOnly, SameSite session cookie, with CSRF protection appropriate to your routes. A browser `Storage` adapter cannot itself read an HttpOnly cookie.
+
+Native applications should use their platform's secure credential storage. Never embed a client secret in a browser or mobile bundle. Store server secrets in a secret manager and exclude tokens from logs, analytics, error reports, and URLs.
+
+## Backend verification and live permissions
+
+```ts
+import { YeboID } from 'yeboid-node';
+const identity = new YeboID({ clientId: process.env.YEBOID_CLIENT_ID! });
+app.get('/profile', identity.authenticate(), identity.requireScopes('profile'), handler);
+```
+
+The middleware verifies RS256, the configured issuer and audience, expiry, required claims, access-token purpose, and scope shape. It caches public JWKS keys locally. It cannot see a new ban or revoked grant from an offline JWT check alone. For sensitive actions, call `identity.introspect(token)` and require `active`, then enforce your own ownership/role checks. The identity API rechecks current account and consent state on protected requests. See the [permission matrix](/permissions).
+
+## Logout and revocation
+
+Use the browser SDK's `signOut()` or submit `token` (the refresh token) and `client_id` to `/oauth/revoke`. If you supply a client secret, it is validated. An unknown token or a token belonging to another client returns 200 without a mutation. A 200 response does not mean an arbitrary access JWT was blacklisted: offline verifiers can continue accepting an already-issued JWT until expiry. Disconnecting the app revokes its consent grant, and introspection/userinfo observe that immediately.
+
+Clear local application sessions after successful sign-out, and display failures so the user knows when server logout did not finish. Disconnecting an app and signing out of YeboID's hosted SSO session are distinct actions.
+
+
+---
+
+<!-- Source: https://docs.yeboid.com/troubleshooting -->
+
+# Troubleshooting sign-in
+
+| Symptom | Check and next action |
+| --- | --- |
+| `invalid_redirect_uri` | Register the callback exactly, including path, port, trailing slash, and scheme. Web callbacks need HTTPS; loopback HTTP is allowed for local development. Fragments and embedded credentials are rejected. |
+| Callback returns 404 | Configure an SPA fallback or add the callback route to your server. Mount the React provider on that route. |
+| `invalid_state` or missing verifier | Start with `signIn()` in the same browser storage context. Do not manually construct a callback or reuse a previous authorization code. |
+| API returns 401 after login | Send the access token, not the ID token. Check `YEBOID_CLIENT_ID` matches the token's audience and the issuer is `https://api.yeboid.com`. |
+| API returns `insufficient_scope` | Allow the scope in Developer Apps, request it during sign-in, then obtain a new consent grant. Do not invent a permission client-side. |
+| `DIRECT_SESSION_REQUIRED` | Open the YeboID account UI for credential, global-session, developer-app, or webhook administration. |
+| No phone/email in userinfo | The matching scope was not granted or the profile field is absent. Do not substitute invented data. |
+| `email_verified` is false | The user must verify their address in YeboID. `requireVerifiedEmail` is a UX gate; enforce verification on your backend too. |
+| Third-party cookies blocked | Browsers may restrict cross-site SSO cookies. Keep the application session and global identity session distinct; display logout failures and offer retry. |
+| 429 | Respect `Retry-After` and the SDK's single-flight refresh. Avoid retry loops across tabs. |
+| Webhook signature fails | Use the raw request bytes, `X-YeboID-Signature`, and `X-YeboID-Timestamp`. Node 2 requires all four verifier arguments. Parsing/re-serializing JSON changes signed bytes. |
+| Package install fails with 404 | Confirm the [release status](/security/release); a prepared tarball is not proof the public npm version has been published. |
+
+## Error handling in React
+
+`useYeboID()` exposes `error`, `retry()`, and `resetError()`. Render failures using your normal error UI. The provided `YeboIDSignInButton` also displays failed sign-in redirects. Catch rejected sign-out promises instead of showing a successful logout while server credentials remain active.
+
+## Report a security issue
+
+Use a private report to the repository owner rather than publishing credentials, personal data, or an exploit against live accounts. Include the package/version, affected endpoint, expected permission, and a reproduction using synthetic local fixtures. Never include an access token, refresh token, client secret, OTP, identity document, or npm token.

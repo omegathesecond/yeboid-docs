@@ -204,6 +204,7 @@ YeboIDProvider(
   config: YeboIDConfig(
     clientId: 'your-client-id',
     redirectUri: 'yourapp://auth',
+    scopes: ['openid', 'profile', 'offline_access', 'kyc'],
     requireKyc: true,  // Only allow verified users
   ),
   child: MyApp(),

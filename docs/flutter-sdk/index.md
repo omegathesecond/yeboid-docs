@@ -44,6 +44,7 @@ void main() {
       config: YeboIDConfig(
         clientId: 'your-client-id',
         redirectUri: 'yourapp://auth',
+        scopes: ['openid', 'profile', 'offline_access'],
       ),
       child: MaterialApp(
         home: LoginScreen(),
@@ -207,3 +208,9 @@ Add to `ios/Runner/Info.plist`:
 - [YeboIDProvider Setup](/flutter-sdk/provider)
 - [Customizing the Login Button](/flutter-sdk/login-button)
 - [Displaying User Avatars](/flutter-sdk/avatar)
+
+## Align permissions with registration
+
+The existing Flutter SDK defaults include `phone`. Configure `scopes` explicitly for new apps: `openid profile offline_access` for basic sign-in. Add `phone`, `email` or `kyc` only after registering those permissions and obtaining user consent. When setting `requireKyc: true`, include `kyc` so the client can read the verification status it enforces. The new npm generator creates React + Node projects; it does not build or run Flutter apps.
+
+For development, use explicit `apiUrl: 'https://dev-api.yeboid.com'` and `authUrl: 'https://dev.yeboid.com'` with a client registered in that environment. The existing SDK's `YeboIDConfig.dev()` currently points to production; do not rely on that helper to isolate development traffic.

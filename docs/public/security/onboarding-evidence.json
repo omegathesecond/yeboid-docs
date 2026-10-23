@@ -1,0 +1,115 @@
+{
+  "syntheticOnly": true,
+  "realPersonKYCCompleted": false,
+  "flow": "packed CLI -> generated React/Node project -> hosted consent UI -> actual API code/PKCE exchange -> signed access token -> protected Node API",
+  "passed": [
+    "CLI preflight",
+    "starter install",
+    "starter production build",
+    "scope parity",
+    "consent screen",
+    "PKCE callback",
+    "protected API audience verification",
+    "returning session reload",
+    "sign out"
+  ],
+  "runtimeAuditVulnerabilities": 0,
+  "fullDependencyAuditVulnerabilities": 0,
+  "screenshots": [
+    "starter-consent.jpg",
+    "starter-protected-api.jpg",
+    "domain-proof-instructions.jpg"
+  ],
+  "verificationCandidate": {
+    "apiTests": 672,
+    "portalTests": 133,
+    "productionMigrationApplied": false,
+    "productionEnforcementEnabled": false
+  },
+  "sdkTests": {
+    "node": 110,
+    "web": 145
+  },
+  "liveSetupAPI": {
+    "commit": "6e85958",
+    "revision": "yeboid-api-prod-00133-fur"
+  },
+  "livePortal": {
+    "commit": "5d92f10",
+    "deployment": "https://7890a1c8.yeboid.pages.dev",
+    "tests": 130,
+    "asset": "index-B1pAkeWM.js"
+  },
+  "npm": {
+    "status": "awaiting-security-key-authentication",
+    "anonymousNewVersionInstallVerified": false,
+    "prepared": [
+      {
+        "package": "yeboid-node",
+        "version": "3.0.0",
+        "integrity": "sha512-dyeOPq+igSMxa7AESJPk8/iWpijp5Sqr7AkUD0obne8iWSnIY2asGKpUaD9GKr/tU7M9x0SFhXLrrJbPoh4USw=="
+      },
+      {
+        "package": "yeboid-web",
+        "version": "1.0.0",
+        "integrity": "sha512-h76OD3tkp2/YFykmW7aFNYwWefWoQAe0+0ICCI1MhRLTa4kVZECR4sqUJFyf8JMgU49JcY4mTk4uHDJrgiQ6+A=="
+      }
+    ]
+  },
+  "audits": {
+    "api": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "app": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "admin": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "node": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "web": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "docs": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "sources": {
+    "apiCandidate": "de9581d",
+    "portalCandidate": "b4a1aa2",
+    "nodeSDK": "5d68615",
+    "webSDK": "d91fc11"
+  }
+}

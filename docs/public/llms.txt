@@ -1,31 +1,22 @@
-# YeboID Developer Documentation
+# YeboID developer integration
 
-> Phone-first identity for African apps — SDK reference, integration guides, and API documentation.
+Read https://docs.yeboid.com/ai-agents for executable setup instructions.
+Read https://docs.yeboid.com/llms-full.txt for the combined plain-text guide.
+Check https://docs.yeboid.com/security/release for actual public release status.
 
-This is the developer documentation for YeboID, the shared identity layer for African apps. It covers SDK installation for Flutter, Node, and the web; OAuth/OIDC integration; phone-OTP and PIN flows; legacy-user linking; and the full HTTP API reference.
+- https://docs.yeboid.com/getting-started
+- https://docs.yeboid.com/register-app
+- https://docs.yeboid.com/app-verification
+- https://docs.yeboid.com/permissions
+- https://docs.yeboid.com/web-sdk/
+- https://docs.yeboid.com/node-sdk/
+- https://docs.yeboid.com/flutter-sdk/
+- https://docs.yeboid.com/troubleshooting
 
-YeboID is part of the Omevision family of African-built tech products, headquartered in Mbabane, Eswatini. Category: Identity / Authentication / Developer Documentation.
-
-## What you'll find here
-
-- Quickstart guides for Flutter, Node.js, and JavaScript/TypeScript web apps
-- OAuth 2.0 / OpenID Connect integration with PKCE
-- Phone-number authentication with OTP via SMS and WhatsApp
-- PIN-based step-up authentication
-- Legacy-user linking (migrating existing users to YeboID without re-registration)
-- HTTP API reference, error codes, and webhooks
-- Production checklists and security best practices
-
-## Who it is for
-
-Developers and product teams adding YeboID authentication to consumer or B2B apps targeting African users.
-
-## Links
-
-- [YeboID developer docs (this site)](https://docs.yeboid.com): SDK reference and integration guides.
-- [YeboID (main site)](https://yeboid.com): the product homepage and signup.
-- [Omevision (parent company)](https://omevision.com): the African tech group behind YeboID.
-
-## About this file
-
-This file follows the [llms.txt convention](https://llmstxt.org/) — it is a curated, machine-readable summary of the YeboID developer documentation intended for use by LLMs and AI agents. Last generated: 2026-05-10.
+JavaScript packages: yeboid-web and yeboid-node. The init generator creates React + Node only.
+CLI doctor/init require yeboid-node 3.0.0; check release status before relying on availability.
+Defaults: openid profile offline_access. Phone, email, KYC and business permissions are opt-in.
+Permissions must be registered, requested, consented and enforced. Refresh cannot add permissions.
+openid identifies an account, not a KYC verification. kyc reads status; apps enforcing verification must check it.
+Keep secrets out of browser code. Use access tokens for APIs, never ID tokens. Store only stable sub as yeboid_user_id.
+Never fabricate successful auth or verification when an API fails. Humans complete KYC and consent.

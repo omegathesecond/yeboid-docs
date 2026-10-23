@@ -41,3 +41,21 @@ JWT checks are local and cached. They establish validity at issuance until the t
 ## Revocation and errors
 
 Return `401` for missing/invalid/expired credentials, `403` for insufficient scope or role, and a visible `5xx` error when identity verification is unavailable. `DIRECT_SESSION_REQUIRED` means the user must complete the action in the hosted YeboID account UI. See [troubleshooting](/troubleshooting).
+
+## Setup checks for AI agents and CI
+
+```sh
+npx yeboid-node doctor --client-id YOUR_CLIENT_ID --redirect-uri YOUR_CALLBACK --json
+```
+
+New registrations and SDK defaults use `openid profile offline_access`. The browser SDK checks `/oauth/clients/{clientId}/configuration` before redirecting, and the portal reads `/oauth/scopes` for its picker. The new SDK preflight rejects unsupported and unregistered scopes before navigation for every app. The candidate server release also enforces that ceiling for raw OAuth requests, including first-party apps; check [release status](/security/release) for deployment. Permissions are never silently broadened or discarded during authorization.
+
+The candidate server release requires `offline_access` for a refresh token. Existing server issuance behavior remains until that cutover. Without it, handle access-token expiry by signing in again. Node token responses expose optional `refreshToken` and actual `scope`; browser clients expose `getGrantedScopes()` and `hasScope()`. Configured scopes express what the app asks for, not what a user granted.
+
+Changing registration cannot edit an already signed JWT. In the candidate server release, YeboID API authentication, userinfo and introspection intersect its scopes with the current grant and app registration. External APIs validating JWTs locally observe revocation/removal at token expiry; use introspection for sensitive operations requiring current state.
+
+Adding scopes means updating both app registration and SDK configuration, then starting sign-in again so the user can consent. A refresh request must stay within existing consent. This follows [OAuth refresh rules](https://www.rfc-editor.org/rfc/rfc6749#section-6) and the [OIDC offline-access consent requirement](https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess).
+
+## Business selection
+
+Third-party applications can access only businesses selected during consent. Under the existing Omevision first-party policy, the `business` permission covers all businesses the person manages; the consent screen explicitly discloses that access and does not present a restrictive picker for those apps. Developer verification and the candidate registered-scope ceiling still apply to first-party apps. A first-party flag never permits direct account administration through a business token.

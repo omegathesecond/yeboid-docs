@@ -5,7 +5,7 @@ the `client_id` (and, for confidential clients, the `client_secret`) that the
 [authorization-code + PKCE flow](/authentication/pkce) needs.
 
 Registration is **self-service** — sign in with your own YeboID and create the
-app yourself. There is no approval queue and no waiting.
+app yourself. Development setup and production verification are separate steps; check [current release status](/security/release) before relying on the verification gate.
 
 ## Register in the developer portal
 
@@ -22,7 +22,7 @@ app yourself. There is no approval queue and no waiting.
 | **Name** | Yes | 2–100 characters. Shown to users on the consent screen. |
 | **Slug** | Yes | 2–50 characters, lowercase letters, numbers and hyphens only. Must be globally unique. |
 | **Redirect URIs** | Yes | At least one absolute URL. Matched **exactly** at authorize time. |
-| **Scopes** | No | Defaults to `openid profile`. See [available scopes](/authentication/#available-scopes). |
+| **Scopes** | No | Defaults to `openid profile offline_access`. See [available scopes](/authentication/#available-scopes). |
 | **Logo URL** | No | Absolute URL, shown on the consent screen. |
 | **Website URL** | No | Absolute URL. |
 | **Privacy policy URL** | No | Absolute URL. |
